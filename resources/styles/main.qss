@@ -1,0 +1,95 @@
+/* Main Stylesheet for Weather App Pro */
+
+
+
+/* =====================================================
+   Global
+   ===================================================== */
+
+QWidget {
+    background: #F4F6F9;
+    font-family: "Segoe UI";
+    font-size: 16px;
+}
+
+QLabel {
+    background: transparent;
+}
+
+QLineEdit {
+    font-size: 18px;
+    padding: 8px;
+}
+
+QPushButton {
+    font-size: 18px;
+    font-weight: bold;
+    padding: 10px;
+}
+
+/* =====================================================
+   Hero Panel
+   ===================================================== */
+
+QFrame#heroPanel {
+    background: white;
+    border: 1px solid #D9D9D9;
+    border-radius: 18px;
+    padding: 18px;
+}
+
+/* =====================================================
+   Details Panel
+   ===================================================== */
+
+QFrame#detailsPanel {
+    background: white;
+    border: 1px solid #D9D9D9;
+    border-radius: 18px;
+    padding: 18px;
+}
+
+/* =====================================================
+   Forecast Panel
+   ===================================================== */
+
+QFrame#forecastPanel {
+    background: white;
+    border: 1px solid #D9D9D9;
+    border-radius: 18px;
+    padding: 18px;
+}
+
+/* =====================================================
+   Labels
+   ===================================================== */
+
+QLabel#city_label {
+    font-size: 32px;
+    font-weight: bold;
+}
+
+QLabel#temperature_label {
+    font-size: 42px;
+    font-weight: bold;
+}
+
+QLabel#description_label {
+    font-size: 20px;
+    color: #555555;
+}
+
+QLabel#minmax_label {
+    font-size: 16px;
+    color: #777777;
+}
+
+QLabel#forecast_title {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+QLabel#status_label,
+QLabel#time_label {
+    color: gray;
+}

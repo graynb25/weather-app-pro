@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Lottie Player</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
+    <style>
+
+        html,
+        body{
+
+            margin:0;
+            padding:0;
+
+            width:100%;
+            height:100%;
+
+            overflow:hidden;
+
+            background:transparent;
+
+        }
+
+        #animation{
+
+            width:100%;
+            height:100%;
+
+            display:flex;
+            justify-content:center;
+            align-items:center;
+
+            background:transparent;
+
+        }
+
+        svg{
+            width:100%;
+            height:100%;
+            background:transparent !important;
+        }
+
+</style>
+</head>
+
+<body>
+        <div id="animation"></div>
+</body>
+        <script>
+
+        let animation = null;
+
+        function setAnimation(animationPath) {
+
+            console.log("Loading animation:");
+            console.log(animationPath);
+
+            try {
+
+                if (animation) {
+                    animation.destroy();
+                }
+
+                animation = lottie.loadAnimation({
+
+                    container: document.getElementById("animation"),
+
+                    renderer: "svg",
+
+                    loop: true,
+
+                    autoplay: true,
+
+                    path: animationPath
+
+                });
+
+                animation.addEventListener("DOMLoaded", function () {
+                    console.log("Animation loaded successfully.");
+                });
+
+                animation.addEventListener("data_failed", function () {
+                    console.log("Animation failed to load.");
+                });
+
+            }
+            catch(error){
+
+                console.log(error);
+
+            }
+        }
+
+        function play() {
+
+            if (animation) {
+
+                animation.play();
+
+            }
+
+        }
+
+        function pause() {
+
+            if (animation) {
+
+                animation.pause();
+
+            }
+
+        }
+
+        function stop() {
+
+            if (animation) {
+
+                animation.stop();
+
+            }
+
+        }
+
+        </script>
+</html>
