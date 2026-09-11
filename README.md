@@ -15,7 +15,11 @@ and presents them with SVG icons, Lottie animations, and QSS themes.
 - Country flag for the searched city
 - Animated Lottie weather and detail icons
 - Light and dark QSS themes
-- Error handling for empty input, unknown cities, and network problems
+- Searches run in the background, so the window never freezes
+- Automatic refresh of the last search every 10 minutes
+- The last successful search is saved and shown at startup or when a
+  request fails
+- Hand-written error messages that never expose technical detail
 
 ## Requirements
 
@@ -55,19 +59,23 @@ To test the Lottie animation pipeline on its own: `python test_lottie.py`
 
 The app writes a rotating log to `logs/app.log` (gitignored). Set
 `WEATHER_CONSOLE_LOG=1` in `.env` to also mirror log messages in the
-console.
+console. The last successful search is kept in `cache.json`
+(gitignored) so the app has something to show offline.
 
 ## Project Structure
 
 ```
 weather-app-pro/
 │
-├── main.py                  Entry point, logging bootstrap
+├── main.py                  Entry point, logging, crash hooks, key check
 ├── ui.py                    Main window, layouts, signals, display logic
-├── weather_api.py           OpenWeatherMap client, validation, error mapping
+├── weather_worker.py        Background search thread (QObject + signals)
+├── weather_api.py           OpenWeatherMap client, validation, retries
 ├── weather_model.py         WeatherData and ForecastData dataclasses
 ├── errors.py                Exception hierarchy with safe user messages
 ├── logging_setup.py         Rotating file logging setup
+├── crash_hooks.py           Crash logging and the final error dialog
+├── cache.py                 Last successful search, saved as JSON
 ├── config.py                App constants
 ├── utils.py                 Conversion helpers, redact_url
 ├── forecast_card.py         One forecast day card
@@ -75,7 +83,7 @@ weather-app-pro/
 ├── managers/                IconManager, AnimationManager, FlagManager, ThemeManager
 ├── widgets/                 DetailCard, forecast widget, LottieWidget
 ├── resources/               Icons, Lottie animations, QSS themes, lottie player
-├── tests/                   pytest suites (status mapping, leak guard, validation)
+├── tests/                   pytest suites (status mapping, retries, leak guard, cache)
 ├── docs/                    Improvement plans (error handling, security, testing, redesign)
 ├── old/                     Legacy code, reference only
 ├── test_lottie.py           Manual animation test harness

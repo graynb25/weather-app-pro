@@ -45,8 +45,27 @@
 
 ---
 
+## v0.5
+
+- Moved all network calls off the GUI thread: searches run through a
+  WeatherWorker on a QThread, results and typed errors come back through
+  signals, and the search button disables while a request is in flight.
+- Added retries with exponential backoff for connection errors, timeouts,
+  and 5xx responses. A 429 is retried only when Retry-After asks for a
+  sane wait.
+- Added cache.py: the last successful search is stored as plain JSON and
+  shown at startup or after a failed request, with an "as of" note.
+- Added quiet auto refresh on config.REFRESH_INTERVAL: repeats the last
+  successful city every 10 minutes and never pops dialogs or replaces a
+  good display with an error.
+- Added a first-run API key check in main.py that names the missing
+  variable instead of failing on the first search.
+- Added crash_hooks.py: uncaught exceptions and Qt messages are logged
+  with stack traces, and a crash shows one friendly dialog.
+
+---
+
 ## Upcoming
 
 - UI redesign.
 - Refactor ui.py.
-- Background network worker and retries (phase 3).

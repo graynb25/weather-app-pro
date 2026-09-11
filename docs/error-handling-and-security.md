@@ -234,15 +234,28 @@ Replace the inline Celsius math in `weather_api.py` with
 - [x] 1.8 input validation
 - [x] 2.1 pytest scaffolding
 - [x] 2.2 tests isolated from .env
-- [ ] 3.1 background network worker
-- [ ] 3.2 retries with backoff
-- [ ] 3.3 last result cache
-- [ ] 3.4 quiet auto refresh (blocks REFRESH_INTERVAL feature)
-- [ ] 3.5 first-run key check
+- [x] 3.1 background network worker
+- [x] 3.2 retries with backoff
+- [x] 3.3 last result cache
+- [x] 3.4 quiet auto refresh (blocks REFRESH_INTERVAL feature)
+- [x] 3.5 first-run key check
 - [ ] 3.6 defensive favorites/settings IO (when implemented)
-- [ ] 3.7 global crash hook
+- [x] 3.7 global crash hook
 - [x] 3.8 utils conversions used everywhere
 
-Phase 1 and the pytest scaffolding it needs were completed in September
-2026 (see docs/changelog.md v0.4). The tests live in tests/ and run with
-`python -m pytest` after installing requirements-dev.txt.
+Phase 1, the pytest scaffolding, and phase 3 (except 3.6, which waits
+for the favorites and settings features) were completed in September
+2026. See docs/changelog.md v0.4 and v0.5. The tests live in tests/
+and run with `python -m pytest` after installing requirements-dev.txt.
+
+Implementation notes for phase 3:
+
+- The retries in weather_api.py are an explicit loop rather than an
+  adapter-mounted urllib3.Retry, with identical semantics. The adapter
+  approach cannot be tested through requests_mock, and the leak guard
+  must see every failure path.
+- Auto refresh starts only after the first successful search and
+  repeats that city. A failed refresh keeps the previous display and
+  only updates the status label.
+- The cache file is cache.json in the project root, written through a
+  temp file plus rename. It is gitignored and never holds the key.

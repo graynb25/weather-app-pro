@@ -20,10 +20,10 @@ Detail lives in docs/error-handling-and-security.md.
 - [x] Rotating file logging
 - [x] Payload and city input validation
 - [x] pytest scaffolding and first suites
-- [ ] Background network worker
-- [ ] Retries with backoff
-- [ ] Last result cache
-- [ ] Quiet auto refresh
+- [x] Background network worker
+- [x] Retries with backoff
+- [x] Last result cache
+- [x] Quiet auto refresh
 
 ---
 

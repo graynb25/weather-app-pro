@@ -14,6 +14,9 @@ the log can say what actually happened without ever showing that text
 to the user.
 """
 
+# Shown when something failed that the app has no specific story for.
+UNEXPECTED_ERROR_MESSAGE = "Something went wrong. See the log for details."
+
 
 class WeatherAppError(Exception):
     """

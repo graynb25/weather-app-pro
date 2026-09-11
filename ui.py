@@ -11,10 +11,12 @@ Responsibilities
 - Display weather information
 - Update the live clock
 - Show errors through hand-written, safe messages
+- Run searches on a background worker thread
+- Auto refresh the last search on an interval
 
 This file does NOT communicate directly with the
 OpenWeatherMap API. All API requests go through
-weather_api.py.
+weather_worker.py on its own thread.
 """
 
 import logging
@@ -24,12 +26,15 @@ from PyQt5.QtWidgets import (QWidget, QMainWindow, QLabel, QPushButton,
     QHBoxLayout, QFrame, QLayout, QGraphicsDropShadowEffect, QMenuBar, QAction)
 
 from weather_api import WeatherAPI
+from weather_worker import WeatherWorker
+from cache import WeatherCache
+from config import REFRESH_INTERVAL
 from errors import WeatherAppError
 from utils import meters_to_miles, unix_to_local_time
 from datetime import datetime, timedelta, timezone
 from PyQt5.QtGui import QPixmap, QPainter, QColor
 from PyQt5.QtSvg import QSvgRenderer
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
 from managers.icon_manager import IconManager
 from managers.flag_manager import FlagManager
 from managers.theme_manager import ThemeManager
@@ -48,6 +53,10 @@ class WeatherApp(QMainWindow):
     Main application window.
     """
 
+    # Carries the search text to the worker thread. Signals are the
+    # only safe way across a thread boundary.
+    search_requested = pyqtSignal(str)
+
     def __init__(self):
         super().__init__()
 
@@ -57,11 +66,29 @@ class WeatherApp(QMainWindow):
         # Stores the latest weather response
         self.weather_data = None
 
+        # When the on-screen weather was fetched (None until first search)
+        self.fetched_at = None
+
         # Updates the city clock every second
         self.timer = QTimer()
 
+        # Repeats the last search on a fixed interval
+        self.refresh_timer = QTimer()
+
         # Current application theme
         self.current_theme = "light"
+
+        # Last successful search, kept on disk for offline starts
+        self.weather_cache = WeatherCache()
+
+        # True when the in-flight request came from the auto refresher
+        self._search_is_auto = False
+
+        # Background search: the worker lives on its own thread so the
+        # window never freezes while a request is in flight
+        self.weather_thread = QThread()
+        self.weather_worker = WeatherWorker(self.weather_api)
+        self.weather_worker.moveToThread(self.weather_thread)
 
         # Build the window
         self.create_widgets()
@@ -69,6 +96,25 @@ class WeatherApp(QMainWindow):
         self.create_layout()
         self.connect_signals()
         self.apply_styles()
+
+        self.weather_thread.start()
+
+        # Show the last successful search when starting offline
+        cached = self.weather_cache.load()
+
+        if cached is not None:
+            weather, forecast, fetched_at = cached
+
+            self.weather_data = weather
+            self.fetched_at = datetime.fromtimestamp(fetched_at)
+
+            self.display_weather(weather)
+            self.display_forecast(forecast)
+
+            self.status_label.setText(
+                f"Showing saved weather for {weather.city} "
+                f"from {self.fetched_at:%I:%M %p}."
+            )
 
         self.timer.start(1000)
 
@@ -549,6 +595,18 @@ class WeatherApp(QMainWindow):
         # Update the displayed clock every second.
         self.timer.timeout.connect(self.update_clock)
 
+        # -----------------------------------------------------
+        # Background search
+        # -----------------------------------------------------
+
+        # The signal hops threads safely; the worker never touches widgets.
+        self.search_requested.connect(self.weather_worker.search)
+        self.weather_worker.search_done.connect(self.on_search_done)
+        self.weather_worker.search_failed.connect(self.on_search_failed)
+
+        # Quietly repeat the last search on a fixed interval.
+        self.refresh_timer.timeout.connect(self.auto_refresh)
+
     def get_weather(self) -> None:
         """
         Retrieve weather information for the city entered by
@@ -566,45 +624,92 @@ class WeatherApp(QMainWindow):
             self.display_error("Please enter a city.")
             return
 
-        # -----------------------------------------------------
-        # Request weather data
-        # -----------------------------------------------------
+        self.begin_search(city, auto=False)
 
-        try:
-            # -----------------------------------------------------
-            # Retrieve current weather and forecast
-            # -----------------------------------------------------
+    def begin_search(self, city: str, auto: bool) -> None:
+        """
+        Run one search on the worker thread.
 
-            weather = self.weather_api.get_current_weather(city)
-            forecast = self.weather_api.get_forecast(city)
+        The search button disables until the worker reports back, so
+        two requests can never overlap.
+        """
 
-            # -----------------------------------------------------
-            # Save the latest weather response
-            # -----------------------------------------------------
+        self._search_is_auto = auto
 
-            self.weather_data = weather
+        self.search_button.setEnabled(False)
+        self.status_label.setText("Searching...")
 
-            # -----------------------------------------------------
-            # Update the interface
-            # -----------------------------------------------------
+        self.search_requested.emit(city)
 
-            self.display_weather(weather)
-            self.display_forecast(forecast)
+    def auto_refresh(self) -> None:
+        """
+        Repeat the last successful search without user action.
 
-        except WeatherAppError as error:
-            # user_message is hand-written in errors.py, so nothing from
-            # the API, the URL, or the exception can reach the screen.
-            logger.warning("Search for '%s' failed: %s",
-                city, error.debug_detail or error.user_message)
+        A failed refresh keeps the previous display and only notes the
+        failure in the status label, never a dialog.
+        """
 
-            self.display_error(error.user_message)
+        if self.weather_data is None or not self.search_button.isEnabled():
+            return
 
-        except Exception:
-            # Unknown territory. Keep the trace in the log, show the
-            # user nothing technical.
-            logger.exception("Unexpected failure during the search for '%s'.", city)
+        self.begin_search(self.weather_data.city, auto=True)
 
-            self.display_error("Something went wrong. See the log for details.")
+    def on_search_done(self, weather: WeatherData,
+        forecast: list[ForecastData]) -> None:
+        """
+        Handle a successful background search.
+        """
+
+        self.weather_data = weather
+        self.fetched_at = datetime.now()
+
+        self.weather_cache.save(weather, forecast)
+
+        self.display_weather(weather)
+        self.display_forecast(forecast)
+
+        self.search_button.setEnabled(True)
+
+        self.refresh_timer.start(REFRESH_INTERVAL)
+
+    def on_search_failed(self, error: WeatherAppError) -> None:
+        """
+        Handle a failed background search.
+
+        The user sees the error's hand-written message. When older
+        weather is already on screen, a note says when it is from.
+        """
+
+        self.search_button.setEnabled(True)
+
+        if self._search_is_auto:
+            logger.warning("Auto refresh failed: %s",
+                error.debug_detail or error.user_message)
+
+            message = f"Auto refresh failed at {datetime.now():%I:%M %p}."
+        else:
+            logger.warning("Search failed: %s",
+                error.debug_detail or error.user_message)
+
+            message = error.user_message
+
+        if self.weather_data is not None and self.fetched_at is not None:
+            message += f" Showing saved weather from {self.fetched_at:%I:%M %p}."
+
+        self.display_error(message)
+
+    def closeEvent(self, event) -> None:
+        """
+        Stop the background thread before the window goes away.
+        """
+
+        self.refresh_timer.stop()
+        self.timer.stop()
+
+        self.weather_thread.quit()
+        self.weather_thread.wait(2000)
+
+        event.accept()
 
     def change_theme(self, theme_name: str) -> None:
         """

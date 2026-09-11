@@ -13,6 +13,7 @@ and the success paths.
 
 import logging
 from datetime import datetime
+from types import SimpleNamespace
 from urllib.parse import parse_qsl, urlparse
 
 import pytest
@@ -20,13 +21,30 @@ import requests
 import requests_mock
 from requests_mock import ANY
 
-from conftest import DUMMY_API_KEY
+from conftest import DUMMY_API_KEY, VALID_CURRENT_PAYLOAD, forecast_item
 
+import weather_api
 from config import MAX_CITY_LENGTH
 from errors import (WeatherAppError, InvalidCityError, ApiKeyMissingError,
     ApiKeyInvalidError, CityNotFoundError, RateLimitError, ApiServiceError,
     NetworkError, ApiDataError)
 from weather_api import WeatherAPI
+
+
+# ---------------------------------------------------------
+# Retry timing
+# ---------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def fast_retries(monkeypatch):
+    """
+    Record retry sleeps instead of living them, so retry tests stay
+    fast and can assert the exact backoff.
+    """
+
+    sleeps = []
+    monkeypatch.setattr(weather_api, "time", SimpleNamespace(sleep=sleeps.append))
+    return sleeps
 
 
 # ---------------------------------------------------------
@@ -61,36 +79,6 @@ def weather_log():
     yield handler
 
     app_logger.removeHandler(handler)
-
-
-# ---------------------------------------------------------
-# Payloads
-# ---------------------------------------------------------
-
-VALID_CURRENT_PAYLOAD = {
-    "name": "London",
-    "sys": {"country": "GB", "sunrise": 1767763200, "sunset": 1767792000},
-    "main": {
-        "temp": 59.0,
-        "feels_like": 57.2,
-        "temp_min": 50.0,
-        "temp_max": 64.4,
-        "humidity": 72,
-        "pressure": 1015,
-    },
-    "weather": [{"id": 500, "description": "light rain"}],
-    "wind": {"speed": 8.0},
-    "visibility": 10000,
-    "timezone": 3600,
-}
-
-
-def forecast_item(dt: int, temp: float) -> dict:
-    return {
-        "dt": dt,
-        "main": {"temp": temp},
-        "weather": [{"id": 802, "description": "scattered clouds"}],
-    }
 
 
 # ---------------------------------------------------------
@@ -306,6 +294,62 @@ def test_non_json_response_raises_api_data_error(api, requests_mock):
 
     with pytest.raises(ApiDataError):
         api.get_current_weather("London")
+
+
+# ---------------------------------------------------------
+# Retries (plan item 3.2)
+# ---------------------------------------------------------
+
+def test_server_errors_are_retried_with_backoff(api, requests_mock, fast_retries):
+    requests_mock.get(ANY, status_code=500, json={})
+
+    with pytest.raises(ApiServiceError):
+        api.get_current_weather("London")
+
+    assert len(requests_mock.request_history) == 3
+    assert fast_retries == [0.5, 1.0]
+
+
+def test_connection_errors_are_retried(api, requests_mock, fast_retries):
+    requests_mock.get(ANY, exc=requests.exceptions.ConnectionError("down"))
+
+    with pytest.raises(NetworkError):
+        api.get_current_weather("London")
+
+    assert len(requests_mock.request_history) == 3
+    assert fast_retries == [0.5, 1.0]
+
+
+def test_retry_after_header_is_honored(api, requests_mock, fast_retries):
+    requests_mock.get(ANY, [
+        {"status_code": 429, "headers": {"Retry-After": "2"}, "json": {}},
+        {"status_code": 200, "json": VALID_CURRENT_PAYLOAD},
+    ])
+
+    weather = api.get_current_weather("London")
+
+    assert weather.city == "London"
+    assert len(requests_mock.request_history) == 2
+    assert fast_retries == [2]
+
+
+def test_429_without_retry_after_fails_immediately(api, requests_mock):
+    requests_mock.get(ANY, status_code=429, json={})
+
+    with pytest.raises(RateLimitError):
+        api.get_current_weather("London")
+
+    assert len(requests_mock.request_history) == 1
+
+
+def test_429_with_huge_retry_after_fails_immediately(api, requests_mock):
+    requests_mock.get(ANY, status_code=429,
+        headers={"Retry-After": "3600"}, json={})
+
+    with pytest.raises(RateLimitError):
+        api.get_current_weather("London")
+
+    assert len(requests_mock.request_history) == 1
 
 
 # ---------------------------------------------------------

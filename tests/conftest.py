@@ -25,6 +25,44 @@ os.environ.setdefault("OPENWEATHER_API_KEY", DUMMY_API_KEY)
 from weather_api import WeatherAPI
 
 
+# ---------------------------------------------------------
+# Shared mock payloads
+# ---------------------------------------------------------
+
+VALID_CURRENT_PAYLOAD = {
+    "name": "London",
+    "sys": {"country": "GB", "sunrise": 1767763200, "sunset": 1767792000},
+    "main": {
+        "temp": 59.0,
+        "feels_like": 57.2,
+        "temp_min": 50.0,
+        "temp_max": 64.4,
+        "humidity": 72,
+        "pressure": 1015,
+    },
+    "weather": [{"id": 500, "description": "light rain"}],
+    "wind": {"speed": 8.0},
+    "visibility": 10000,
+    "timezone": 3600,
+}
+
+
+def forecast_item(dt: int, temp: float) -> dict:
+    return {
+        "dt": dt,
+        "main": {"temp": temp},
+        "weather": [{"id": 802, "description": "scattered clouds"}],
+    }
+
+
+VALID_FORECAST_PAYLOAD = {
+    "list": [
+        forecast_item(1767763200, 50.0),
+        forecast_item(1767849600, 60.0),
+    ],
+}
+
+
 @pytest.fixture
 def api() -> WeatherAPI:
     """

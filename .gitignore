@@ -25,3 +25,6 @@ docs/private/
 
 # Application logs
 logs/
+
+# Cached weather data (written at runtime)
+cache.json

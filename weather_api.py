@@ -23,6 +23,7 @@ Project: Weather App Pro
 
 import logging
 import os
+import time
 from collections.abc import Callable
 from datetime import datetime
 from typing import NoReturn
@@ -31,7 +32,8 @@ import requests
 from dotenv import load_dotenv
 
 from config import (BASE_URL, CURRENT_WEATHER_ENDPOINT, FORECAST_ENDPOINT,
-    REQUEST_TIMEOUT, DEFAULT_UNITS, MAX_CITY_LENGTH)
+    REQUEST_TIMEOUT, DEFAULT_UNITS, MAX_CITY_LENGTH, RETRY_ATTEMPTS,
+    RETRY_BACKOFF_SECONDS, RETRY_AFTER_CAP_SECONDS)
 
 from weather_model import WeatherData, ForecastData
 from errors import (InvalidCityError, ApiKeyMissingError,
@@ -42,7 +44,6 @@ from utils import redact_url, fahrenheit_to_celsius
 from requests.exceptions import (
     ConnectionError,
     Timeout,
-    HTTPError,
     RequestException,
 )
 
@@ -203,11 +204,12 @@ class WeatherAPI:
     def _request_data(self, url: str, params: dict,
         validate: Callable[[dict], None]) -> dict:
         """
-        Perform one API call and return the validated JSON payload.
+        Perform one API call, with retries, and return the validated
+        JSON payload.
 
-        Checks the API key up front, maps transport and HTTP failures
-        onto the errors hierarchy, and runs the caller's payload
-        validation before anything is returned.
+        Connection failures, timeouts, and 5xx responses are retried
+        with exponential backoff. A 429 is retried only when the API
+        says to wait a sane amount of time through Retry-After.
 
         Raises:
             WeatherAppError: A subclass matching the failure.
@@ -217,29 +219,59 @@ class WeatherAPI:
             logger.error("API request attempted without a key.")
             raise ApiKeyMissingError(MESSAGE_KEY_MISSING)
 
-        try:
-            response = requests.get(
-                url,
-                params=params,
-                timeout=REQUEST_TIMEOUT
-            )
+        total_attempts = RETRY_ATTEMPTS + 1
 
-            response.raise_for_status()
+        for attempt in range(1, total_attempts + 1):
+            last_attempt = attempt == total_attempts
 
-        except ConnectionError as error:
-            logger.error("Connection failed: %s", redact_url(str(error)))
-            raise NetworkError(MESSAGE_NETWORK) from None
+            try:
+                response = requests.get(
+                    url,
+                    params=params,
+                    timeout=REQUEST_TIMEOUT
+                )
 
-        except Timeout as error:
-            logger.error("Request timed out: %s", redact_url(str(error)))
-            raise NetworkError(MESSAGE_TIMEOUT) from None
+            except ConnectionError as error:
+                logger.error("Connection failed: %s", redact_url(str(error)))
 
-        except HTTPError as error:
-            self._map_http_error(error)
+                if last_attempt:
+                    raise NetworkError(MESSAGE_NETWORK) from None
 
-        except RequestException as error:
-            logger.error("Request failed: %s", redact_url(str(error)))
-            raise ApiServiceError(MESSAGE_SERVICE) from None
+                self._sleep_backoff(attempt, url)
+                continue
+
+            except Timeout as error:
+                logger.error("Request timed out: %s", redact_url(str(error)))
+
+                if last_attempt:
+                    raise NetworkError(MESSAGE_TIMEOUT) from None
+
+                self._sleep_backoff(attempt, url)
+                continue
+
+            except RequestException as error:
+                logger.error("Request failed: %s", redact_url(str(error)))
+                raise ApiServiceError(MESSAGE_SERVICE) from None
+
+            status = response.status_code
+
+            # Honor Retry-After, but never wait longer than the cap and
+            # never retry a rate limit the API did not time for us.
+            if status == 429 and not last_attempt:
+                wait = self._retry_after_seconds(response)
+
+                if wait is not None and wait <= RETRY_AFTER_CAP_SECONDS:
+                    logger.info("Rate limited. Retrying in %.0fs.", wait)
+                    time.sleep(wait)
+                    continue
+
+            if status >= 500 and not last_attempt:
+                self._sleep_backoff(attempt, url)
+                continue
+
+            break
+
+        self._raise_http_error(response)
 
         try:
             data = response.json()
@@ -252,22 +284,54 @@ class WeatherAPI:
 
         return data
 
-    def _map_http_error(self, error: HTTPError) -> NoReturn:
+    def _sleep_backoff(self, attempt: int, url: str) -> None:
         """
-        Turn a failed HTTP response into the matching errors.py type.
+        Wait before the next attempt, with exponential backoff.
+        """
+
+        delay = RETRY_BACKOFF_SECONDS * 2 ** (attempt - 1)
+
+        logger.info("Retrying in %.1fs: %s", delay, redact_url(url))
+        time.sleep(delay)
+
+    def _retry_after_seconds(self, response: requests.Response) -> float | None:
+        """
+        Read the Retry-After header as seconds.
+
+        Returns None when the header is missing or is not a plain
+        number. HTTP-date values are not worth parsing for this API.
+        """
+
+        raw = response.headers.get("Retry-After")
+
+        if raw is None:
+            return None
+
+        try:
+            return float(raw)
+        except ValueError:
+            return None
+
+    def _raise_http_error(self, response: requests.Response) -> None:
+        """
+        Turn an error response into the matching errors.py type.
+
+        The response URL reaches the log through redact_url only.
 
         Raises:
             ApiKeyInvalidError: On 401.
             CityNotFoundError: On 404.
             RateLimitError: On 429.
-            ApiServiceError: On 5xx and every other status.
+            ApiServiceError: On any other error status.
         """
 
-        status = error.response.status_code if error.response is not None else None
+        status = response.status_code
 
-        # str(error) embeds the full request URL, so it only goes to the
-        # log through redact_url.
-        logger.error("API returned HTTP %s: %s", status, redact_url(str(error)))
+        if status < 400:
+            return
+
+        logger.error("API returned HTTP %s for %s",
+            status, redact_url(response.url))
 
         if status in STATUS_ERRORS:
             error_class, user_message = STATUS_ERRORS[status]
