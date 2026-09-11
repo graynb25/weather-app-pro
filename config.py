@@ -15,6 +15,12 @@ APP_VERSION = f"v{_version}"
 
 BASE_URL = "https://api.openweathermap.org/data/2.5"
 
+GEO_URL = "https://api.openweathermap.org/geo/1.0/direct"
+
+GEO_LIMIT = 5                 # suggestions per autocomplete query
+
+SUGGEST_DEBOUNCE_MS = 300     # idle time after typing before suggesting
+
 CURRENT_WEATHER_ENDPOINT = "/weather"
 FORECAST_ENDPOINT = "/forecast"
 

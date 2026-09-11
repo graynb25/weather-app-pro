@@ -89,13 +89,14 @@ imperial and the models carry both units, so the toggle is display state:
 it refreshes the hero, detail tiles, hourly strip, and forecast table
 immediately and persists through settings.py.
 
-### 4.8 Search autocomplete (M)
+### 4.8 Search autocomplete (done)
 
-Use the OpenWeatherMap geocoding endpoint (free, separate from `/weather`):
-debounced (300 ms) requests while typing, show up to five suggestions with
-city, state, and country, fill the search box on selection. Needs the same
-background-worker treatment as searches (error-handling plan item 3.1) and the
-same key-safety rules.
+Typing queues a debounced (300 ms) query to the OpenWeatherMap geocoding
+endpoint through `geocoding.py` and a `SuggestWorker` on its own thread
+(same background-worker treatment as searches). Up to five suggestions
+appear as city, state, country in a styled popup; picking one fills the
+search box with the disambiguated query. Failures are best effort: logged
+with `redact_url`, never dialogs.
 
 ### 4.9 Window and system polish (L)
 
@@ -162,7 +163,7 @@ edge cases, autocomplete debounce logic as a pure function).
 - [x] 4.5 typography pass
 - [x] 4.6 dynamic background gradient
 - [x] 4.7 unit toggle
-- [ ] 4.8 search autocomplete
+- [x] 4.8 search autocomplete
 - [ ] 4.9 window and system polish
 - [ ] 4.10 footer status improvements
 - [ ] 5.1 settings persistence

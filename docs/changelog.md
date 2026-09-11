@@ -128,6 +128,22 @@
 
 ---
 
+## v0.10
+
+- Added search autocomplete (geocoding.py, SuggestWorker): typing
+  queues a debounced query (300 ms) to the OpenWeatherMap geocoding
+  API on its own thread, and a styled popup lists up to five matches
+  as city, state, country. Picking one fills the search box with the
+  disambiguated query.
+- Suggestion failures are best effort: they are logged with the key
+  redacted and the popup simply stays closed. Stale answers for an
+  older query are dropped.
+- The geocoder reuses the errors hierarchy and key-safety rules; 404
+  counts as no matches.
+
+---
+
 ## Upcoming
 
-- Search autocomplete.
+- Polish batch: app icon, centered first show, empty state,
+  updated-X-minutes-ago.

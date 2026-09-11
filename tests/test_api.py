@@ -48,40 +48,6 @@ def fast_retries(monkeypatch):
 
 
 # ---------------------------------------------------------
-# Log capture
-# ---------------------------------------------------------
-
-class ListHandler(logging.Handler):
-    """
-    Capture formatted records from the app's own "weather" logger.
-
-    caplog also collects third-party debug output (requests_mock logs
-    the raw request URL, key included, under its own logger name), so
-    the leak guard needs a handler scoped to the app's namespace.
-    """
-
-    def __init__(self):
-        super().__init__()
-        self.formatted = []
-
-    def emit(self, record):
-        self.formatted.append(self.format(record))
-
-
-@pytest.fixture
-def weather_log():
-    handler = ListHandler()
-    handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
-
-    app_logger = logging.getLogger("weather")
-    app_logger.addHandler(handler)
-
-    yield handler
-
-    app_logger.removeHandler(handler)
-
-
-# ---------------------------------------------------------
 # Leak guard (plan item 1.7)
 # ---------------------------------------------------------
 

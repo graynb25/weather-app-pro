@@ -29,12 +29,14 @@ from PyQt5.QtGui import QFont, QPixmap, QPainter
 from PyQt5.QtSvg import QSvgRenderer
 from PyQt5.QtWidgets import (QWidget, QMainWindow, QLabel, QPushButton,
     QLineEdit, QVBoxLayout, QGridLayout, QActionGroup, QAction,
-    QHBoxLayout, QFrame, QLayout, QScrollArea)
+    QHBoxLayout, QFrame, QLayout, QScrollArea, QCompleter)
+from PyQt5.QtCore import QStringListModel
+from geocoding import Geocoder
 
-from config import APP_VERSION
+from config import APP_VERSION, SUGGEST_DEBOUNCE_MS
 from favorites import Favorites
 from weather_api import WeatherAPI
-from weather_worker import WeatherWorker
+from weather_worker import WeatherWorker, SuggestWorker
 from cache import WeatherCache
 from errors import WeatherAppError
 from managers.condition_theme import ConditionTheme
@@ -65,6 +67,9 @@ class WeatherApp(QMainWindow):
     # Carries the search text to the worker thread. Signals are the
     # only safe way across a thread boundary.
     search_requested = pyqtSignal(str)
+
+    # Carries the autocomplete query to the suggest worker.
+    suggest_requested = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -115,6 +120,27 @@ class WeatherApp(QMainWindow):
         self.weather_worker = WeatherWorker(self.weather_api)
         self.weather_worker.moveToThread(self.weather_thread)
 
+        # Autocomplete: a debounce timer batches typing, then a second
+        # worker thread asks the geocoding API. Failures stay quiet.
+        self.suggest_thread = QThread()
+        self.suggest_worker = SuggestWorker(Geocoder())
+        self.suggest_worker.moveToThread(self.suggest_thread)
+
+        self.suggest_timer = QTimer()
+        self.suggest_timer.setSingleShot(True)
+
+        self.suggest_model = QStringListModel()
+
+        self.completer = QCompleter(self.suggest_model, self)
+        self.completer.setCompletionMode(QCompleter.UnfilteredPopupCompletion)
+        self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+
+        self._suggestions = {}
+        self._suggest_query = ""
+
+
+        # Build the window
+
         # Build the window
         self.create_widgets()
         self.create_menu()
@@ -123,6 +149,7 @@ class WeatherApp(QMainWindow):
         self.apply_styles()
 
         self.weather_thread.start()
+        self.suggest_thread.start()
 
         # Restore the saved window geometry when it is usable; the
         # first-show fit only runs when there is nothing to restore.
@@ -202,6 +229,12 @@ class WeatherApp(QMainWindow):
         self.city_input = QLineEdit()
         self.city_input.setObjectName("searchInput")
         self.city_input.setPlaceholderText("City name, 85 characters max")
+        self.city_input.setCompleter(self.completer)
+
+        popup = self.completer.popup()
+
+        if popup is not None:
+            popup.setObjectName("suggestPopup")
 
         self.search_button = QPushButton("GET WEATHER")
         self.search_button.setObjectName("searchButton")
@@ -636,6 +669,16 @@ class WeatherApp(QMainWindow):
         # Pressing Enter inside the text box also requests weather.
         self.city_input.returnPressed.connect(self.get_weather)
 
+        # Typing queues a debounced autocomplete query.
+        self.city_input.textEdited.connect(self.queue_suggestions)
+        self.suggest_timer.timeout.connect(self.emit_suggestions)
+
+        self.suggest_requested.connect(self.suggest_worker.suggest)
+        self.suggest_worker.suggestions_ready.connect(self.on_suggestions)
+        self.suggest_worker.suggest_failed.connect(self.on_suggest_failed)
+
+        self.completer.activated.connect(self.on_suggestion_activated)
+
         # Update the displayed clock every second.
         self.timer.timeout.connect(self.update_clock)
 
@@ -670,6 +713,66 @@ class WeatherApp(QMainWindow):
             return
 
         self.begin_search(city, auto=False)
+
+    # ---------------------------------------------------------
+    # Autocomplete
+    # ---------------------------------------------------------
+
+    def queue_suggestions(self, text: str) -> None:
+        """
+        Batch typing: restart the debounce on every keystroke.
+        """
+
+        cleaned = text.strip()
+
+        if len(cleaned) < 2:
+            self.suggest_timer.stop()
+            self.suggest_model.setStringList([])
+            self._suggestions = {}
+            return
+
+        self._suggest_query = cleaned
+        self.suggest_timer.start(SUGGEST_DEBOUNCE_MS)
+
+    def emit_suggestions(self) -> None:
+        """
+        The debounce fired: ask the geocoder on its worker thread.
+        """
+
+        self.suggest_requested.emit(self._suggest_query)
+
+    def on_suggestions(self, query: str, results: list) -> None:
+        """
+        Fill the popup, unless the user has typed something else since
+        the request went out.
+        """
+
+        if query != self.city_input.text().strip():
+            return
+
+        self._suggestions = {result.display: result for result in results}
+
+        self.suggest_model.setStringList(list(self._suggestions.keys()))
+
+    def on_suggest_failed(self, query: str, error: WeatherAppError) -> None:
+        """
+        Suggestions are best effort: failures stay in the log and the
+        popup simply does not open.
+        """
+
+        logger.warning("Autocomplete unavailable: %s",
+            error.debug_detail or error.user_message)
+
+    def on_suggestion_activated(self, display: str) -> None:
+        """
+        Fill the search box with the picked suggestion's disambiguated
+        query.
+        """
+
+        result = self._suggestions.get(display)
+
+        if result is not None:
+            self.city_input.setText(result.query)
 
     def search_favorite(self, city: str) -> None:
         """
@@ -989,8 +1092,13 @@ class WeatherApp(QMainWindow):
             self.x(), self.y(), self.width(), self.height()
         ])
 
+        self.suggest_timer.stop()
+
         self.weather_thread.quit()
         self.weather_thread.wait(2000)
+
+        self.suggest_thread.quit()
+        self.suggest_thread.wait(2000)
 
         event.accept()
 

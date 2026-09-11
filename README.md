@@ -11,6 +11,8 @@ and presents them with SVG icons, Lottie animations, and QSS themes.
 - Hour-by-hour strip for the next 24 hours
 - Saved-city favorites: click to search, plus to save the current city
   (right click removes), capped at 10 and persisted
+- Search autocomplete: debounced city suggestions from the geocoding
+  API while you type
 - Daily hi/lo range bars for the 5-day forecast
 - Live local clock for the selected city
 - Country flag for the searched city
@@ -80,6 +82,7 @@ weather-app-pro/
 ├── logging_setup.py         Rotating file logging setup
 ├── crash_hooks.py           Crash logging and the final error dialog
 ├── cache.py                 Last successful search, saved as JSON
+├── geocoding.py             City suggestions for autocomplete
 ├── settings.py              Persisted settings (units, geometry, interval)
 ├── favorites.py             Persisted saved cities (capped at 10)
 ├── VERSION                  App version, shown in the footer

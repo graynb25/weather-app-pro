@@ -296,6 +296,30 @@ QLabel#footerLabel {
 }
 
 /* =====================================================
+   Autocomplete popup
+   ===================================================== */
+
+QListView#suggestPopup {
+    background: rgba(13, 18, 28, 244);
+    color: #eef2f7;
+    border: 1px solid rgba(255, 255, 255, 46);
+    border-radius: 8px;
+    padding: 4px;
+    outline: none;
+    font-size: 13px;
+}
+
+QListView#suggestPopup::item {
+    background: transparent;
+    border-radius: 6px;
+    padding: 6px 12px;
+}
+
+QListView#suggestPopup::item:selected {
+    background: rgba(255, 255, 255, 36);
+}
+
+/* =====================================================
    Favorites bar
    ===================================================== */
 

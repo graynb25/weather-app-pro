@@ -291,6 +291,76 @@ def test_add_and_click_a_favorite(qtbot, requests_mock):
     assert window.weather_data.city == "London"
 
 
+def test_typing_populates_the_suggest_popup(qtbot, requests_mock):
+    from config import GEO_URL
+
+    requests_mock.get(GEO_URL, status_code=200, json=[
+        {"name": "London", "state": "England", "country": "GB"},
+        {"name": "London", "country": "Canada"},
+    ])
+
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    # Simulate the user typing, then the debounce expiring: the query
+    # goes to the geocoder and the popup model fills.
+    window.city_input.setText("Lond")
+    window.queue_suggestions("Lond")
+
+    qtbot.waitUntil(
+        lambda: window.suggest_model.stringList() != [], timeout=5000
+    )
+
+    labels = window.suggest_model.stringList()
+
+    assert "London, England, GB" in labels
+    assert "London, Canada" in labels
+
+
+def test_selecting_a_suggestion_fills_the_box(qtbot):
+    from geocoding import GeoResult
+
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    window.city_input.setText("Lond")
+    window.on_suggestions("Lond", [
+        GeoResult(name="London", state="England", country="GB"),
+    ])
+
+    window.on_suggestion_activated("London, England, GB")
+
+    assert window.city_input.text() == "London, GB"
+
+
+def test_stale_suggestions_are_dropped(qtbot):
+    from geocoding import GeoResult
+
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    # The user has moved on to a different query since "Lon" went out.
+    window.city_input.setText("Par")
+    window.on_suggestions("Lon", [
+        GeoResult(name="London", country="GB"),
+    ])
+
+    assert window.suggest_model.stringList() == []
+
+
+def test_short_queries_never_reach_the_worker(qtbot):
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    emitted = []
+    window.suggest_requested.connect(emitted.append)
+
+    window.queue_suggestions("L")
+
+    assert emitted == []
+    assert window.suggest_model.stringList() == []
+
+
 def test_forecast_table_fills_rows(qtbot):
     table = ForecastTable()
     qtbot.addWidget(table)

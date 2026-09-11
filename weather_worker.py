@@ -66,3 +66,45 @@ class WeatherWorker(QObject):
             return
 
         self.search_done.emit(weather, forecast, hourly)
+
+
+class SuggestWorker(QObject):
+    """
+    Executes autocomplete queries on its own thread.
+
+    Failures are reported but stay quiet: the UI logs them and leaves
+    the popup alone, since suggestions are best effort.
+    """
+
+    # The query the results belong to (stale answers are dropped by
+    # the UI) and the list of GeoResult objects.
+    suggestions_ready = pyqtSignal(str, list)
+
+    suggest_failed = pyqtSignal(str, object)
+
+    def __init__(self, geocoder):
+        super().__init__()
+
+        self.geocoder = geocoder
+
+    @pyqtSlot(str)
+    def suggest(self, query: str) -> None:
+        try:
+            results = self.geocoder.search(query)
+
+        except WeatherAppError as error:
+            logger.warning("Suggestions for '%s' failed: %s",
+                query, error.debug_detail or error.user_message)
+
+            self.suggest_failed.emit(query, error)
+            return
+
+        except Exception:
+            logger.exception("Unexpected failure suggesting '%s'.", query)
+
+            self.suggest_failed.emit(
+                query, WeatherAppError(UNEXPECTED_ERROR_MESSAGE)
+            )
+            return
+
+        self.suggestions_ready.emit(query, results)
