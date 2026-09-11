@@ -197,6 +197,21 @@
 
 ---
 
+## v0.14
+
+- Installer (release plan phase 2): an Inno Setup build in build.ps1
+  produces WeatherAppPro-setup-<version>.exe with a must-accept
+  license page (MIT plus the notices summary), an info page (free-key
+  requirement, privacy summary, disclaimer), per-user or per-machine
+  scope chosen at install time, Start Menu and optional desktop
+  shortcuts, and an uninstaller that asks before deleting user data
+  (default: keep).
+- Portable zip now carries a README-portable.txt explaining the .env
+  option and the data folder.
+- The LICENSE copyright holder is "Weather App Pro".
+
+---
+
 ## Upcoming
 
-- Release sprint: installer, About dialog, clean-machine pass.
+- Release sprint: About dialog, clean-machine pass, GitHub release.

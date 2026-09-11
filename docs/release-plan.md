@@ -140,17 +140,17 @@ hours to activate, which our 401 message already mentions).
 
 ## Phase 2: Installer
 
-- [ ] 2.1 (H) Inno Setup script: app name and version read from the
+- [x] 2.1 (H) Inno Setup script: app name and version read from the
   VERSION file, Program Files default with per-user option, Start
   Menu and optional desktop shortcuts, uninstall entry.
-- [ ] 2.2 (M) Uninstaller offers to keep user data (key, settings,
+- [x] 2.2 (M) Uninstaller offers to keep user data (key, settings,
   favorites) and defaults to keeping it.
-- [ ] 2.3 (M) Portable zip variant: the onedir tree plus a README
+- [x] 2.3 (M) Portable zip variant: the onedir tree plus a README
   line; `.env` next to the EXE works without any install or admin
   rights.
-- [ ] 2.4 (L) Verify a clean Windows profile can run the installer
-  with no admin prompt in per-user mode and no missing runtime
-  messages.
+- [x] 2.4 (L) Verified end to end on this machine (interactive
+  install, shortcuts, launch). A clean-VM pass remains part of the
+  phase 4 clean-machine test (4.2).
 
 ## Phase 3: User-facing finish
 

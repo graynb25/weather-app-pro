@@ -120,7 +120,7 @@ VSVersionInfo(
             StringStruct('FileDescription', 'Weather App Pro'),
             StringStruct('FileVersion', '{version}.0'),
             StringStruct('InternalName', 'WeatherAppPro'),
-            StringStruct('LegalCopyright', 'MIT License. Copyright (c) 2026 Gray Nelson.'),
+            StringStruct('LegalCopyright', 'MIT License. Copyright (c) 2026 Weather App Pro.'),
             StringStruct('OriginalFilename', 'WeatherAppPro.exe'),
             StringStruct('ProductName', 'Weather App Pro'),
             StringStruct('ProductVersion', '{version}.0'),
