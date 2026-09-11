@@ -98,16 +98,19 @@ appear as city, state, country in a styled popup; picking one fills the
 search box with the disambiguated query. Failures are best effort: logged
 with `redact_url`, never dialogs.
 
-### 4.9 Window and system polish (L)
+### 4.9 Window and system polish (done)
 
-Minimum window size, centered first show, an application icon, a HiDPI check
-on the icons, and a proper empty state before the first search (a short hint
-plus two or three example cities).
+Minimum window size, centered first show (skipped when a saved window
+geometry is restored), an app icon rendered from the clear-sky SVG,
+and an empty state with three clickable example cities in the hero.
+HiDPI icon check and the installer icon are left for the release
+sprint.
 
-### 4.10 Footer status improvements (L)
+### 4.10 Footer status improvements (done)
 
-Show "Updated 5 minutes ago" using the timestamp of the last successful fetch,
-and restore it after errors instead of leaving the error text as the last word.
+The status line shows "Updated {city} . X ago" from the last successful
+fetch, ticking with the clock. Errors hold the line for half a minute
+and then it takes over again.
 
 ## Phase 5: Planned features
 
@@ -164,8 +167,8 @@ edge cases, autocomplete debounce logic as a pure function).
 - [x] 4.6 dynamic background gradient
 - [x] 4.7 unit toggle
 - [x] 4.8 search autocomplete
-- [ ] 4.9 window and system polish
-- [ ] 4.10 footer status improvements
+- [x] 4.9 window and system polish
+- [x] 4.10 footer status improvements
 - [ ] 5.1 settings persistence
 - [ ] 5.2 favorites
 - [x] 5.3 auto refresh
