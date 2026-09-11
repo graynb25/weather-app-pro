@@ -3,6 +3,11 @@
 Phases 4 and 5 of the roadmap. This document first records what mainstream
 weather apps do, then maps each idea onto this codebase with a severity.
 
+Working visual previews of four full redesign styles live in
+`instance/preview/` (local only, gitignored): open the HTML files in a
+browser. The chosen style, once decided, gets folded into the checklist
+below with an implementation order.
+
 ## What other weather apps do
 
 Findings from looking at current weather app UI patterns (Apple Weather, Google
@@ -119,11 +124,11 @@ A row of city chips under the search bar; clicking one fetches it. Add and
 remove through a context menu. Cap the count (10 is plenty) and persist on
 change, not on close.
 
-### 5.3 Auto refresh (M)
+### 5.3 Auto refresh (done)
 
-Enable `config.REFRESH_INTERVAL` with a `QTimer` re-fetching the current city.
-Only works after error-handling plan item 3.4 (quiet failures) is done.
-Interval configurable in settings.
+Shipped in v0.5 with quiet failure handling: the last successful city is
+re-fetched every `config.REFRESH_INTERVAL` (10 minutes). Interval
+configuration moves into settings when 5.1 lands.
 
 ### 5.4 weather_animation.py: painter-based effects (L)
 
@@ -162,6 +167,6 @@ edge cases, autocomplete debounce logic as a pure function).
 - [ ] 4.10 footer status improvements
 - [ ] 5.1 settings persistence
 - [ ] 5.2 favorites
-- [ ] 5.3 auto refresh
+- [x] 5.3 auto refresh
 - [ ] 5.4 painter-based weather effects
 - [ ] 5.5 tests for each new feature
