@@ -14,7 +14,7 @@ Author: Gray Nelson
 Project: Weather App Pro
 """
 
-from pathlib import Path
+import paths
 
 
 class IconManager:
@@ -22,11 +22,9 @@ class IconManager:
     Returns the correct icon path for a weather condition.
     """
 
-    # Root folder of the application
-    PROJECT_ROOT = Path(__file__).resolve().parent.parent
-
-    # Resource folders
-    RESOURCE_FOLDER = PROJECT_ROOT / "resources"
+    # Resource folders (resolved through paths.py so a frozen
+    # build finds them in its extraction directory)
+    RESOURCE_FOLDER = paths.resources_root()
     WEATHER_FOLDER = RESOURCE_FOLDER / "icons" / "weather"
     DETAIL_FOLDER = RESOURCE_FOLDER / "icons" / "details"
 

@@ -40,6 +40,7 @@ from errors import (InvalidCityError, ApiKeyMissingError,
     ApiKeyInvalidError, CityNotFoundError, RateLimitError, ApiServiceError,
     NetworkError, ApiDataError)
 from utils import redact_url, fahrenheit_to_celsius
+import paths
 
 from requests.exceptions import (
     ConnectionError,
@@ -50,10 +51,13 @@ from requests.exceptions import (
 logger = logging.getLogger(f"weather.{__name__}")
 
 # ---------------------------------------------------------
-# Load environment variables (.env)
+# Load environment variables: the project .env in dev, plus the
+# key file in the data directory (written by the first-run dialog).
+# load_dotenv never overrides an existing variable.
 # ---------------------------------------------------------
 
 load_dotenv()
+load_dotenv(paths.key_file())
 
 # ---------------------------------------------------------
 # Hand-written user messages and status mapping

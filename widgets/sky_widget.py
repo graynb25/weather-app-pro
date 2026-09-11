@@ -86,6 +86,17 @@ class SkyWidget(QWidget):
 
         return ConditionTheme.palette(self.condition)
 
+    def set_paused(self, paused: bool) -> None:
+        """
+        Stop the scene timer while the window is minimized so a hidden
+        animation does not burn CPU.
+        """
+
+        if paused:
+            self._timer.stop()
+        elif not self._timer.isActive() and self.isVisible():
+            self._timer.start(FRAME_MS)
+
     # ---------------------------------------------------------
     # Scene state
     # ---------------------------------------------------------

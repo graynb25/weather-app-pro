@@ -51,70 +51,70 @@ free license is ODbL-based; and every user of the app must register
 their own OpenWeatherMap account and key (new keys can take up to two
 hours to activate, which our 401 message already mentions).
 
-- [ ] 0.9 (H) LICENSE file: the MIT license text with the copyright
+- [x] 0.9 (H) LICENSE file: the MIT license text with the copyright
   holder and year, referenced by the README. This covers the project's
   own code.
-- [ ] 0.10 (H) THIRD-PARTY-NOTICES file: PyQt5 (GPL v3 or commercial,
+- [x] 0.10 (H) THIRD-PARTY-NOTICES file: PyQt5 (GPL v3 or commercial,
   see decision 5), requests (Apache 2.0), python-dotenv (BSD-3), plus
   the OpenWeatherMap data notice. Ships in the installer and the
   portable zip.
-- [ ] 0.11 (H) Visible OpenWeatherMap attribution in the app: a footer
+- [x] 0.11 (H) Visible OpenWeatherMap attribution in the app: a footer
   line reading "Weather data provided by OpenWeather" that opens
   openweathermap.org when clicked. Required by the free plan terms and
   it belongs on the screen where the data is shown, not only in the
   About dialog.
-- [ ] 0.12 (M) PRIVACY file and installer page: what the app sends
+- [x] 0.12 (M) PRIVACY file and installer page: what the app sends
   (typed city queries and the user's own API key to OpenWeatherMap
   over HTTPS), what never leaves the machine (the key file, settings,
   favorites, cache, logs), and that the developer collects nothing.
   Links to OpenWeatherMap's own privacy terms.
-- [ ] 0.13 (M) Disclaimer text (in the installer page, the About
+- [x] 0.13 (M) Disclaimer text (in the installer page, the About
   dialog, and the README): weather data comes from OpenWeatherMap with
   no accuracy warranty; do not rely on it for safety-critical
   decisions.
-- [ ] 0.14 (M) Installer consent flow: the Inno Setup license page
+- [ ] 0.14 (M) Installer consent flow (files exist; the Inno Setup wiring lands with 2.1): the Inno Setup license page
   (must accept) carries the MIT license plus a summary of the notices,
   and an info page before it states the free-key requirement, the
   attribution, and the privacy summary. Feeds item 2.1.
-- [ ] 0.15 (M) Tell users a free OpenWeatherMap account is required:
+- [x] 0.15 (M) Tell users a free OpenWeatherMap account is required:
   the first-run dialog links the signup page, the README says it up
   front, and the key-activation delay is already covered by the 401
   message.
-- [ ] 0.16 (L) Asset provenance check: confirm where the weather and
-  flag SVGs and the Lottie JSON files came from and record their
-  licenses in the notices file. Owner question; the repo history does
-  not say.
+- [x] 0.16 (L) Asset provenance check: the weather icons and the
+  Lottie animations are Meteocons by Bas Milius (MIT, no attribution
+  required). The country flags are collected by the owner; their
+  provenance is still to confirm before any public distribution.
 
-- [ ] 0.1 (S) Frozen-aware paths. One `paths.py` helper that resolves
+- [x] 0.1 (S) Frozen-aware paths. One `paths.py` helper that resolves
   the app data directory (`%LOCALAPPDATA%\WeatherAppPro` for logs,
   cache, settings, favorites) and the read-only resource root
   (`sys._MEIPASS` when frozen, the project root in dev, including
   VERSION). Update logging_setup, cache, settings, favorites, config,
   and the managers to use it. Dev behavior unchanged. Migrates any
   existing dev-machine files on first run.
-- [ ] 0.2 (S) Secret-free bundle rule, automated: a build step that
+- [x] 0.2 (S) Secret-free bundle rule, automated (tools/secret_scan.py; wired into build.ps1 in phase 1): a build step that
   asserts no `.env` and no `OPENWEATHER_API_KEY`-looking string exists
   anywhere in the dist tree. Mirrors the git-side check we already
   run.
-- [ ] 0.3 (H) Move PyQtWebEngine out of `requirements.txt` into
+- [x] 0.3 (H) Move PyQtWebEngine out of `requirements.txt` into
   `requirements-dev.txt`; `test_lottie.py` stays a dev-only harness.
   Update agent.md and README accordingly.
-- [ ] 0.4 (H) Key management for the installed app: a first-run dialog
+- [x] 0.4 (H) Key management for the installed app: a first-run dialog
   that asks for the key, validates it with one cheap API call, and
   stores it in the app data directory as a dotenv-style file. It never
   goes into settings.json and never into the repo. Portable mode
   (phase 2) reads `.env` next to the EXE first, so the dev workflow is
   unchanged.
-- [ ] 0.5 (H) High DPI: set `Qt.AA_EnableHighDpiScaling` and
+- [x] 0.5 (H) High DPI: set `Qt.AA_EnableHighDpiScaling` and
   `Qt.AA_UseHighDpiPixmaps` before creating QApplication. Verify the
   layout at 150 percent scaling.
-- [ ] 0.6 (M) Pause the sky animation while the window is minimized
+- [x] 0.6 (M) Pause the sky animation while the window is minimized
   (changeEvent on WindowMinimized) to stop burning CPU on a hidden
   30 fps timer.
-- [ ] 0.7 (M) Crash path in a windowed build: stdout and stderr are
+- [x] 0.7 (M) Crash path in a windowed build: stdout and stderr are
   None with `--windowed`; sweep for stray `print(` and confirm the
   logger and crash dialog need neither stream.
-- [ ] 0.8 (L) Single-instance guard (Qt QLockFile in the data
+- [x] 0.8 (L) Single-instance guard (Qt QLockFile in the data
   directory): a second launch focuses the first instead of stacking.
 
 ## Phase 1: Build pipeline (the EXE)

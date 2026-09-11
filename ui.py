@@ -24,7 +24,7 @@ Design source: instance/preview/05-glass-console.html (local preview).
 
 import logging
 
-from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QEvent, QTimer, QThread, pyqtSignal
 from PyQt5.QtGui import QFont, QIcon, QPixmap, QPainter
 from PyQt5.QtSvg import QSvgRenderer
 from PyQt5.QtWidgets import (QWidget, QMainWindow, QLabel, QPushButton,
@@ -1174,6 +1174,17 @@ class WeatherApp(QMainWindow):
     # ---------------------------------------------------------
     # Shutdown
     # ---------------------------------------------------------
+
+    def changeEvent(self, event) -> None:
+        """
+        Pause the sky scene while minimized; resume on restore.
+        """
+
+        super().changeEvent(event)
+
+        if event.type() == QEvent.WindowStateChange:
+            minimized = bool(self.windowState() & Qt.WindowMinimized)
+            self.sky.set_paused(minimized)
 
     def closeEvent(self, event) -> None:
         """

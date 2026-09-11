@@ -73,9 +73,6 @@ class LottieWidget(QWidget):
             )
         )
 
-        print(self.HTML_FILE)
-        print(self.HTML_FILE.exists())
-
     def on_player_loaded(self, success: bool) -> None:
         """
         Called when the HTML player finishes loading.

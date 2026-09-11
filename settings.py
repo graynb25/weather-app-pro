@@ -19,13 +19,14 @@ anything derived from it never goes into this file.
 import json
 import logging
 import os
+
+import paths
+
 from pathlib import Path
 
 logger = logging.getLogger(f"weather.{__name__}")
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-
-SETTINGS_FILE = PROJECT_ROOT / "settings.json"
+SETTINGS_FILE = paths.settings_file()
 
 UNITS = ("imperial", "metric")
 CONDITION_MODES = ("auto", "clear", "cloudy", "rain", "snow", "mist", "night")

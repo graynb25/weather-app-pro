@@ -33,11 +33,11 @@ and presents them with SVG icons, Lottie animations, and QSS themes.
 - An OpenWeatherMap API key (the free tier is enough)
 - Dependencies, pinned in `requirements.txt`:
   - PyQt5 5.15.11
-  - PyQtWebEngine 5.15.7
   - requests 2.32.5
   - python-dotenv 1.2.2
-- For the test suite, pinned in `requirements-dev.txt`:
-  - pytest 9.1.1, pytest-cov 7.1.0, pytest-qt 4.5.0, requests-mock 1.12.1
+- For tests and the animation harness, pinned in `requirements-dev.txt`
+  (adds PyQtWebEngine, pytest 9.1.1, pytest-cov 7.1.0, pytest-qt 4.5.0,
+  requests-mock 1.12.1)
 
 ## Setup
 
@@ -46,7 +46,9 @@ and presents them with SVG icons, Lottie animations, and QSS themes.
    ```bash
    pip install -r requirements.txt
    ```
-3. Copy `.env.example` to `.env` and set your key:
+3. Get a free API key at openweathermap.org/appid (new keys can
+   take up to two hours to activate), then copy `.env.example` to
+   `.env` and set your key:
    ```text
    OPENWEATHER_API_KEY=your_key_here
    ```

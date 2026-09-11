@@ -20,12 +20,12 @@ logged as-is (it can embed the request URL, which contains the key).
 
 import logging
 from logging.handlers import RotatingFileHandler
-from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+import paths
 
-LOG_FOLDER = PROJECT_ROOT / "logs"
-LOG_FILE = LOG_FOLDER / "app.log"
+LOG_FILE = paths.log_file()
+
+LOG_FOLDER = LOG_FILE.parent
 
 MAX_BYTES = 1_000_000     # 1 MB per file
 BACKUP_COUNT = 5          # app.log.1 ... app.log.5

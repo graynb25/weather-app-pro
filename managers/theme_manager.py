@@ -5,7 +5,7 @@ theme_manager.py
 Loads Qt stylesheets (.qss) from the resources/styles folder.
 """
 
-from pathlib import Path
+import paths
 
 
 class ThemeManager:
@@ -13,11 +13,7 @@ class ThemeManager:
     Loads application themes.
     """
 
-    STYLE_FOLDER = (
-        Path(__file__).resolve().parent.parent
-        / "resources"
-        / "styles"
-    )
+    STYLE_FOLDER = paths.resources_root() / "styles"
 
     DEFAULT_THEME = "light"
 

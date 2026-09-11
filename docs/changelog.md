@@ -160,6 +160,29 @@
 
 ---
 
+## v0.12
+
+- Release-readiness work (release plan phase 0):
+- paths.py: frozen-aware filesystem locations. Runtime files move to
+  %LOCALAPPDATA%\WeatherAppPro when frozen; running from source is
+  unchanged.
+- First-run API key setup: the app asks for a free OpenWeatherMap key,
+  validates it with one cheap call, and stores it in the data
+  directory. The key file is loaded at startup.
+- High DPI scaling enabled; the app renders sharply on scaled
+  displays.
+- Single-instance guard: a second launch focuses the message instead
+  of stacking windows.
+- The sky scene pauses while the window is minimized.
+- PyQtWebEngine moved to the dev requirements; the runtime no longer
+  needs it.
+- tools/secret_scan.py: the release gate that checks a build tree for
+  key material.
+- LICENSE (MIT), THIRD-PARTY-NOTICES, and PRIVACY added; the weather
+  icons and animations are Meteocons by Bas Milius (MIT).
+
+---
+
 ## Upcoming
 
-- Release sprint: installer, EXE, About dialog.
+- Release sprint: EXE build pipeline, installer, About dialog.

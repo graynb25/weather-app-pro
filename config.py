@@ -1,13 +1,11 @@
 # config.py
 
-from pathlib import Path
+import paths
 
-# The app version, kept in the VERSION file next to this module and
+# The app version, kept in the VERSION file on the read-only side and
 # bumped with every release. Displayed in the footer and window title.
 try:
-    _version = (Path(__file__).resolve().parent / "VERSION").read_text(
-        encoding="utf-8"
-    ).strip()
+    _version = paths.version_file().read_text(encoding="utf-8").strip()
 except OSError:
     _version = "0.0.0"
 

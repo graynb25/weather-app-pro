@@ -19,6 +19,9 @@ the request or the key.
 import json
 import logging
 import os
+
+import paths
+
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
@@ -27,9 +30,7 @@ from weather_model import WeatherData, ForecastData, HourData
 
 logger = logging.getLogger(f"weather.{__name__}")
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-
-CACHE_FILE = PROJECT_ROOT / "cache.json"
+CACHE_FILE = paths.cache_file()
 
 
 class WeatherCache:

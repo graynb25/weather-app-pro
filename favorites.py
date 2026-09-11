@@ -17,13 +17,14 @@ The API key and anything derived from it never goes into this file.
 import json
 import logging
 import os
+
+import paths
+
 from pathlib import Path
 
 logger = logging.getLogger(f"weather.{__name__}")
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-
-FAVORITES_FILE = PROJECT_ROOT / "favorites.json"
+FAVORITES_FILE = paths.favorites_file()
 
 MAX_FAVORITES = 10
 

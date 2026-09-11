@@ -19,7 +19,7 @@ Project: Weather App Pro
 # Imports
 # ==========================================================
 
-from pathlib import Path
+import paths
 from PyQt5.QtCore import QUrl
 
 
@@ -37,9 +37,7 @@ class AnimationManager:
     # Project folders
     # ------------------------------------------------------
 
-    PROJECT_ROOT = Path(__file__).resolve().parent.parent
-
-    RESOURCE_FOLDER = PROJECT_ROOT / "resources"
+    RESOURCE_FOLDER = paths.resources_root()
     WEATHER_FOLDER = RESOURCE_FOLDER / "animations" / "weather"
     DETAIL_FOLDER = RESOURCE_FOLDER / "animations" / "details"
 

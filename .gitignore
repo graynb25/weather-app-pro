@@ -35,5 +35,8 @@ settings.json
 # Saved cities (written at runtime)
 favorites.json
 
+# Single-instance lock (written at runtime)
+app.lock
+
 # Private previews and proposals (local only)
 instance/

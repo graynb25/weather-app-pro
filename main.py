@@ -7,10 +7,11 @@ Entry point for the Weather App.
 Responsibilities
 ----------------
 1. Set up logging and crash hooks.
-2. Create the QApplication.
-3. Create the main application window.
-4. Warn once when the API key is missing.
-5. Display the window and start Qt's event loop.
+2. Enforce a single running instance.
+3. Create the QApplication with High DPI scaling.
+4. Create the main application window.
+5. Run the first-run API key setup when no key exists.
+6. Display the window and start Qt's event loop.
 
 This file should remain very small.
 All UI code belongs in ui.py.
@@ -19,12 +20,14 @@ All UI code belongs in ui.py.
 import os
 import sys
 
-from PyQt5.QtWidgets import QApplication, QMessageBox
+from PyQt5.QtCore import QLockFile, Qt
+from PyQt5.QtWidgets import QApplication, QInputDialog, QMessageBox
 
+import paths
 from crash_hooks import install_crash_hooks
+from geocoding import store_key, validate_key
 from logging_setup import setup_logging
 from ui import WeatherApp
-from weather_api import MESSAGE_KEY_MISSING
 
 
 def main() -> None:
@@ -39,16 +42,92 @@ def main() -> None:
 
     install_crash_hooks()
 
+    # Crisp rendering on scaled displays. Must happen before the
+    # QApplication exists.
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+
     app = QApplication(sys.argv)
+
+    # One instance at a time. The lock lives in the data directory and
+    # releases automatically when the process dies.
+    paths.ensure_data_dir()
+
+    lock = QLockFile(str(paths.data_dir() / "app.lock"))
+    lock.setStaleLockTime(0)
+
+    if not lock.tryLock(100):
+        QMessageBox.warning(
+            None,
+            "Weather App Pro",
+            "Weather App Pro is already running.",
+        )
+        sys.exit(0)
+
     window = WeatherApp()
 
-    # Surface a missing key now, instead of failing on the first search.
-    # The message names the variable, never its value.
+    # First run: ask for a free OpenWeatherMap key and store it in the
+    # data directory. Skipping is fine; the app warns again on search.
     if not window.weather_api.api_key_exists():
-        QMessageBox.warning(window, "Weather App Pro", MESSAGE_KEY_MISSING)
+        offer_key_setup(window)
 
     window.show()
     sys.exit(app.exec())
+
+
+def offer_key_setup(window: WeatherApp) -> None:
+    """
+    Ask for a free OpenWeatherMap API key, validate it with one cheap
+    call, and store it in the data directory.
+
+    The user can skip this and set a key later; the window's warning
+    stays until a working key exists.
+    """
+
+    message = (
+        "Weather App Pro needs a free OpenWeatherMap API key.\n"
+        "Create one at openweathermap.org/appid and paste it below.\n"
+        "(New keys can take up to two hours to activate.)"
+    )
+
+    while True:
+        key, accepted = QInputDialog.getText(
+            window,
+            "Weather App Pro: API key",
+            message,
+        )
+
+        key = key.strip()
+
+        if not accepted or not key:
+            return
+
+        if validate_key(key):
+            store_key(key)
+            os.environ["OPENWEATHER_API_KEY"] = key
+            window.weather_api.api_key = key
+
+            QMessageBox.information(
+                window,
+                "Weather App Pro",
+                "API key saved. You are ready to search.",
+            )
+            return
+
+        message = (
+            "That key was rejected.\n"
+            "Check it on openweathermap.org (new keys can take up to two\n"
+            "hours to activate), then try again."
+        )
+
+        retry = QMessageBox.question(
+            window,
+            "Weather App Pro",
+            message + "\n\nTry again?",
+        )
+
+        if retry != QMessageBox.Yes:
+            return
 
 
 if __name__ == "__main__":

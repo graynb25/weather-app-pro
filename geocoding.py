@@ -26,6 +26,7 @@ from errors import (InvalidCityError, ApiKeyMissingError, ApiKeyInvalidError,
     CityNotFoundError, RateLimitError, ApiServiceError, NetworkError,
     ApiDataError)
 from utils import redact_url
+import paths
 
 from requests.exceptions import ConnectionError, Timeout, RequestException
 
@@ -33,6 +34,10 @@ logger = logging.getLogger(f"weather.{__name__}")
 
 MAX_QUERY_LENGTH = 85
 COMMON_WHITESPACE = " \t\n\r\f\v"
+
+# A one-line dotenv file stored in the data directory, written by the
+# first-run dialog and loaded by weather_api at startup.
+KEY_FILE_LINE = "OPENWEATHER_API_KEY={key}\n"
 
 
 class GeoResult:
@@ -201,3 +206,37 @@ class Geocoder:
             state=str(entry.get("state", "")).strip(),
             country=str(entry.get("country", "")).strip(),
         )
+
+
+def validate_key(api_key: str) -> bool:
+    """
+    Check an API key with one cheap geocoding call.
+
+    Used by the first-run dialog before the key is stored. Any
+    failure (rejected key, network trouble) counts as invalid: the
+    dialog will say so and let the user retry.
+    """
+
+    try:
+        response = requests.get(
+            GEO_URL,
+            params={"q": "London", "limit": 1, "appid": api_key},
+            timeout=REQUEST_TIMEOUT,
+        )
+    except RequestException:
+        return False
+
+    return response.status_code == 200
+
+
+def store_key(api_key: str) -> None:
+    """
+    Write the key to the dotenv-style file in the data directory.
+
+    weather_api loads this file at startup. The key never goes
+    anywhere else (see PRIVACY.md).
+    """
+
+    key_file = paths.key_file()
+
+    key_file.write_text(KEY_FILE_LINE.format(key=api_key), encoding="utf-8")

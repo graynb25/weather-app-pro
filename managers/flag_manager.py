@@ -14,7 +14,7 @@ Author: Gray Nelson
 Project: Weather App Pro
 """
 
-from pathlib import Path
+import paths
 
 
 class FlagManager:
@@ -22,9 +22,7 @@ class FlagManager:
     Returns the path to a country's flag icon.
     """
 
-    PROJECT_ROOT = Path(__file__).resolve().parent.parent
-
-    RESOURCE_FOLDER = PROJECT_ROOT / "resources"
+    RESOURCE_FOLDER = paths.resources_root()
     FLAG_FOLDER = RESOURCE_FOLDER / "icons" / "flags"
 
     @classmethod
