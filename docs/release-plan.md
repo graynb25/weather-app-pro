@@ -39,7 +39,51 @@ From inspecting the current code:
    real answer. Severity: H (it is the difference between an
    installable app and a dev artifact).
 
-## Phase 0: Release readiness (code changes before packaging)
+## Phase 0: Release readiness (code and legal before packaging)
+
+### Legal, licensing, and attribution
+
+Facts this section is built on (verified September 2026 against
+openweathermap.org): the free plan requires visible attribution, the
+text "Weather data provided by OpenWeather" with a hyperlink to
+openweathermap.org, placed where the weather data is displayed; the
+free license is ODbL-based; and every user of the app must register
+their own OpenWeatherMap account and key (new keys can take up to two
+hours to activate, which our 401 message already mentions).
+
+- [ ] 0.9 (H) LICENSE file: the MIT license text with the copyright
+  holder and year, referenced by the README. This covers the project's
+  own code.
+- [ ] 0.10 (H) THIRD-PARTY-NOTICES file: PyQt5 (GPL v3 or commercial,
+  see decision 5), requests (Apache 2.0), python-dotenv (BSD-3), plus
+  the OpenWeatherMap data notice. Ships in the installer and the
+  portable zip.
+- [ ] 0.11 (H) Visible OpenWeatherMap attribution in the app: a footer
+  line reading "Weather data provided by OpenWeather" that opens
+  openweathermap.org when clicked. Required by the free plan terms and
+  it belongs on the screen where the data is shown, not only in the
+  About dialog.
+- [ ] 0.12 (M) PRIVACY file and installer page: what the app sends
+  (typed city queries and the user's own API key to OpenWeatherMap
+  over HTTPS), what never leaves the machine (the key file, settings,
+  favorites, cache, logs), and that the developer collects nothing.
+  Links to OpenWeatherMap's own privacy terms.
+- [ ] 0.13 (M) Disclaimer text (in the installer page, the About
+  dialog, and the README): weather data comes from OpenWeatherMap with
+  no accuracy warranty; do not rely on it for safety-critical
+  decisions.
+- [ ] 0.14 (M) Installer consent flow: the Inno Setup license page
+  (must accept) carries the MIT license plus a summary of the notices,
+  and an info page before it states the free-key requirement, the
+  attribution, and the privacy summary. Feeds item 2.1.
+- [ ] 0.15 (M) Tell users a free OpenWeatherMap account is required:
+  the first-run dialog links the signup page, the README says it up
+  front, and the key-activation delay is already covered by the 401
+  message.
+- [ ] 0.16 (L) Asset provenance check: confirm where the weather and
+  flag SVGs and the Lottie JSON files came from and record their
+  licenses in the notices file. Owner question; the repo history does
+  not say.
 
 - [ ] 0.1 (S) Frozen-aware paths. One `paths.py` helper that resolves
   the app data directory (`%LOCALAPPDATA%\WeatherAppPro` for logs,
@@ -110,8 +154,9 @@ From inspecting the current code:
 
 - [ ] 3.1 (M) About dialog (Help menu or title bar button): app name,
   version from the VERSION file, a short description, the data folder
-  path, and an offer to open it. No repo link while the repo is
-  private.
+  path, and an offer to open it. Also carries the OpenWeatherMap
+  attribution with a link (items 0.11) and points at the notices file
+  (0.10). No repo link while the repo is private.
 - [ ] 3.2 (H) First-run key setup UX from 0.4: dialog copy, validation
   feedback, and a clear path to change the key later.
 - [ ] 3.3 (M) README release section: install from the installer, run
@@ -153,6 +198,13 @@ Not blockers; defaults are proposed.
    text. Alternatives (Windows Credential Manager) add complexity for
    little gain on a personal machine; noted as a future hardening
    item.
+5. PyQt5 licensing: PyQt5 is GPL v3 or commercial. MIT covers this
+   project's own code, but the packaged app is built on PyQt5, so
+   distributed binaries carry PyQt5's GPL terms. Compliant default:
+   keep the source public (this repo) and ship the notices file.
+   The GPL-free alternative is migrating to PySide6 (LGPL), which is
+   a real code migration and is proposed as a post-1.0 option, not a
+   1.0 item.
 
 ## Out of scope for this release
 

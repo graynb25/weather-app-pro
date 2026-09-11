@@ -37,6 +37,18 @@ release plan executes this list.
 - [ ] Dist tree scan (release-plan item 0.2) found no key material
 - [ ] Log file reviewed: URLs redacted to `appid=***`
 
+## Legal and attribution
+
+- [ ] LICENSE (MIT), THIRD-PARTY-NOTICES, and PRIVACY files exist and
+      ship in the installer and portable zip
+- [ ] Installer license page must be accepted before install
+- [ ] Installer info page states the free-key requirement and the
+      privacy summary
+- [ ] "Weather data provided by OpenWeather" attribution is visible on
+      the main screen and links openweathermap.org
+- [ ] About dialog shows the attribution and the notices location
+- [ ] README states the free-key requirement up front
+
 ## Packaging
 
 - [ ] VERSION bumped, changelog entry written

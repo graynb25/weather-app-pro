@@ -48,9 +48,11 @@ item tracking into one place if keeping two in sync gets old.
   items including favorites, settings, and painter-based animations.
 - [release-plan.md](release-plan.md)
   The phase 6 release sprint: frozen-app plumbing (data directory,
-  bundled resources), the build pipeline and secret scan, the Inno
-  Setup installer and portable zip, the About dialog and first-run key
-  setup, and verification. Items tagged S/H/M/L.
+  bundled resources), legal and attribution (LICENSE, notices, privacy,
+  the OpenWeatherMap attribution requirement), the build pipeline and
+  secret scan, the Inno Setup installer and portable zip, the About
+  dialog and first-run key setup, and verification. Items tagged
+  S/H/M/L.
 
 ### Project reference (owner's docs)
 
