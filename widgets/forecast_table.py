@@ -46,6 +46,11 @@ class ForecastRow(QFrame):
 
         self.icon_label = QLabel()
 
+        # Reserved at full icon size so the row height is identical
+        # before and after the first search; otherwise the window
+        # grows taller once icons appear.
+        self.icon_label.setMinimumSize(30, 30)
+
         self.range_bar = RangeBar()
 
         self.values_label = QLabel()

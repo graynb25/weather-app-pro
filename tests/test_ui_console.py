@@ -153,6 +153,32 @@ def test_search_failure_shows_the_hand_written_message(qtbot, requests_mock):
     )
 
 
+def test_console_height_does_not_grow_after_a_search(qtbot):
+    """
+    The window fits the console on first show, before any search
+    exists. A search must not make the content taller, or the owner
+    ends up with a scrollbar.
+    """
+
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    window.show()
+    qtbot.wait(50)
+
+    before = window._console_content.sizeHint().height()
+
+    window.display_weather(sample_weather())
+    window.display_forecast(sample_forecast())
+    qtbot.wait(50)
+
+    after = window._console_content.sizeHint().height()
+
+    # A pixel of rounding from font metrics is fine; the pre-search
+    # fit adds slack for it.
+    assert after - before <= 2
+
+
 def test_forecast_table_fills_rows(qtbot):
     table = ForecastTable()
     qtbot.addWidget(table)

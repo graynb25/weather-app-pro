@@ -567,6 +567,11 @@ class WeatherApp(QMainWindow):
 
         self.refresh_timer.start(REFRESH_INTERVAL)
 
+        # If the filled console is taller than the window (it should
+        # not be, but fonts and metrics vary), grow to fit rather
+        # than make the owner scroll.
+        QTimer.singleShot(0, self._fit_height)
+
     def on_search_failed(self, error: WeatherAppError) -> None:
         """
         Handle a failed background search.
@@ -796,6 +801,17 @@ class WeatherApp(QMainWindow):
 
         self._window_size_fitted = True
 
+        self._fit_height(grow_only=False)
+
+    def _fit_height(self, grow_only: bool = True) -> None:
+        """
+        Resize the window to exactly fit the console content.
+
+        Never exceeds the screen; with grow_only it also never shrinks,
+        so a window the owner resized smaller stays put unless the
+        content genuinely no longer fits.
+        """
+
         needed = (
             self._console_content.sizeHint().height()
             + self.menuBar().height()
@@ -809,4 +825,7 @@ class WeatherApp(QMainWindow):
 
         available = self.screen().availableGeometry().height()
 
-        self.resize(self.width(), min(needed, available))
+        target = min(needed, available)
+
+        if not grow_only or target > self.height():
+            self.resize(self.width(), target)
