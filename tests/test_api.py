@@ -12,7 +12,7 @@ and the success paths.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from urllib.parse import parse_qsl, urlparse
 
@@ -278,7 +278,8 @@ def test_malformed_current_payload_raises_api_data_error(api, requests_mock,
 @pytest.mark.parametrize("broken_payload", [
     {},
     {"list": []},
-    {"list": [{"dt": 1767763200}]},
+    {"city": {"timezone": 3600}, "list": []},
+    {"city": {"timezone": 3600}, "list": [{"dt": 1767763200}]},
 ])
 def test_malformed_forecast_payload_raises_api_data_error(api, requests_mock,
     broken_payload):
@@ -384,6 +385,7 @@ def test_get_forecast_picks_the_entry_closest_to_midday(api, requests_mock):
     tuesday_noon = int(datetime(2026, 1, 6, 12, 0).timestamp())
 
     requests_mock.get(ANY, status_code=200, json={
+        "city": {"timezone": 3600},
         "list": [
             forecast_item(monday_morning, 40.0),
             forecast_item(monday_noon, 50.0),
@@ -391,9 +393,43 @@ def test_get_forecast_picks_the_entry_closest_to_midday(api, requests_mock):
         ],
     })
 
-    forecast = api.get_forecast("London")
+    forecast, hourly = api.get_forecast("London")
 
     assert [day.temperature_f for day in forecast] == [50.0, 60.0]
     assert [day.date for day in forecast] == ["2026-01-05", "2026-01-06"]
     assert [day.day for day in forecast] == ["Mon", "Tue"]
     assert forecast[0].temperature_c == pytest.approx(10.0)
+
+    # Every entry is long past, so the strip keeps only the NOW chip.
+    assert [chip.hour for chip in hourly] == ["NOW"]
+
+
+def test_get_hourly_builds_future_chips(api, requests_mock):
+    now = datetime.now(timezone.utc)
+
+    # Ten future entries at three-hour steps, in a UTC+1 city.
+    entries = [
+        forecast_item(int(now.timestamp()) + index * 3 * 3600, 50.0 + index)
+        for index in range(10)
+    ]
+
+    requests_mock.get(ANY, status_code=200, json={
+        "city": {"timezone": 3600},
+        "list": entries,
+    })
+
+    _, hourly = api.get_forecast("London")
+
+    assert len(hourly) == 8
+    assert hourly[0].hour == "NOW"
+    assert hourly[0].temperature_f == pytest.approx(50.0)
+
+    # Labels are the city-local hour in 12h form without a leading
+    # zero, three hours apart.
+    city_tz = timezone(timedelta(hours=1))
+
+    for index, chip in enumerate(hourly[1:], start=1):
+        local = (now + timedelta(hours=3 * index)).astimezone(city_tz)
+        expected = local.strftime("%I %p").lstrip("0")
+
+        assert chip.hour == expected, (index, chip.hour, expected)

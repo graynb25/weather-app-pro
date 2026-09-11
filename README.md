@@ -8,6 +8,7 @@ and presents them with SVG icons, Lottie animations, and QSS themes.
 
 - Search weather by city
 - Current temperature in Fahrenheit and Celsius
+- Hour-by-hour strip for the next 24 hours
 - Daily hi/lo range bars for the 5-day forecast
 - Live local clock for the selected city
 - Country flag for the searched city
@@ -81,7 +82,7 @@ weather-app-pro/
 ├── managers/                IconManager, FlagManager, ThemeManager,
 │                            AnimationManager, ConditionTheme (palettes)
 ├── widgets/                 SkyWidget (animated background), StatTile,
-│                            RangeBar, ForecastTable, LottieWidget
+│                            RangeBar, ForecastTable, HourlyStrip, LottieWidget
 ├── resources/               Icons, animations, lottie player, console.qss theme
 ├── tests/                   pytest suites (API, worker, sky, range bars, UI)
 ├── docs/                    Improvement plans (redesign, testing, security)

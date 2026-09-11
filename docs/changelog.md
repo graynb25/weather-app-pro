@@ -90,7 +90,21 @@
 
 ---
 
+## v0.7
+
+- Added the hourly strip (widgets/hourly_strip.py): glass chips for the
+  next 24 hours with hour, condition icon, and monospace temperature.
+  The first chip is NOW and picks up the condition accent.
+- get_forecast() now returns daily and hourly data from the same
+  payload, labeled with the forecast's city timezone; no second API
+  call. ForecastData gained an HourData sibling model.
+- The worker signal, cache file, and startup display carry the hourly
+  chips. Caches from before the strip load with an empty strip.
+
+---
+
 ## Upcoming
 
-- Hourly strip (optional addition to the console design).
-- Refactor ui.py.
+- Settings persistence and the unit toggle.
+- Favorites.
+- Search autocomplete.

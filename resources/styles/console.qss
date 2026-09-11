@@ -296,6 +296,77 @@ QLabel#footerLabel {
 }
 
 /* =====================================================
+   Hourly strip
+   ===================================================== */
+
+QFrame#hourlyPanel {
+    background: rgba(11, 16, 25, 170);
+    border: 1px solid rgba(255, 255, 255, 38);
+    border-radius: 12px;
+}
+
+QFrame#hourlyRow {
+    background: transparent;
+}
+
+QScrollArea#hourlyScroll {
+    background: transparent;
+    border: none;
+}
+
+QScrollArea#hourlyScroll > QWidget > QWidget {
+    background: transparent;
+}
+
+QScrollArea#hourlyScroll QScrollBar:horizontal {
+    background: rgba(11, 16, 25, 120);
+    height: 8px;
+    border-radius: 4px;
+    margin: 2px;
+}
+
+QScrollArea#hourlyScroll QScrollBar::handle:horizontal {
+    background: rgba(255, 255, 255, 60);
+    border-radius: 3px;
+    min-width: 40px;
+}
+
+QScrollArea#hourlyScroll QScrollBar::add-line:horizontal,
+QScrollArea#hourlyScroll QScrollBar::sub-line:horizontal {
+    width: 0;
+    height: 0;
+}
+
+QScrollArea#hourlyScroll QScrollBar::add-page:horizontal,
+QScrollArea#hourlyScroll QScrollBar::sub-page:horizontal {
+    background: transparent;
+}
+
+QFrame#hourChip {
+    background: rgba(255, 255, 255, 22);
+    border: 1px solid rgba(255, 255, 255, 30);
+    border-radius: 10px;
+}
+
+QLabel#hourLabel {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(238, 242, 247, 205);
+}
+
+QLabel#hourNow {
+    font-size: 10px;
+    font-weight: 700;
+    color: #6fb3ff;
+}
+
+QLabel#hourTemp {
+    font-size: 16px;
+    font-weight: 600;
+    font-family: Consolas, "Courier New", monospace;
+}
+
+/* =====================================================
    Condition accents: WeatherApp carries a dynamic
    "condition" property; these rules keep the search
    button, live badge, and condition text on palette.
@@ -307,7 +378,8 @@ WeatherApp[condition="clear"] QPushButton#searchButton:hover {
     color: #10151d;
 }
 WeatherApp[condition="clear"] QLabel#liveBadge,
-WeatherApp[condition="clear"] QLabel#conditionText {
+WeatherApp[condition="clear"] QLabel#conditionText,
+WeatherApp[condition="clear"] QLabel#hourNow {
     color: #ffb454;
 }
 
@@ -317,7 +389,8 @@ WeatherApp[condition="cloudy"] QPushButton#searchButton:hover {
     color: #10151d;
 }
 WeatherApp[condition="cloudy"] QLabel#liveBadge,
-WeatherApp[condition="cloudy"] QLabel#conditionText {
+WeatherApp[condition="cloudy"] QLabel#conditionText,
+WeatherApp[condition="cloudy"] QLabel#hourNow {
     color: #9db8d9;
 }
 
@@ -327,7 +400,8 @@ WeatherApp[condition="rain"] QPushButton#searchButton:hover {
     color: #10151d;
 }
 WeatherApp[condition="rain"] QLabel#liveBadge,
-WeatherApp[condition="rain"] QLabel#conditionText {
+WeatherApp[condition="rain"] QLabel#conditionText,
+WeatherApp[condition="rain"] QLabel#hourNow {
     color: #6fb3ff;
 }
 
@@ -337,7 +411,8 @@ WeatherApp[condition="snow"] QPushButton#searchButton:hover {
     color: #10151d;
 }
 WeatherApp[condition="snow"] QLabel#liveBadge,
-WeatherApp[condition="snow"] QLabel#conditionText {
+WeatherApp[condition="snow"] QLabel#conditionText,
+WeatherApp[condition="snow"] QLabel#hourNow {
     color: #9fd8ff;
 }
 
@@ -347,7 +422,8 @@ WeatherApp[condition="mist"] QPushButton#searchButton:hover {
     color: #10151d;
 }
 WeatherApp[condition="mist"] QLabel#liveBadge,
-WeatherApp[condition="mist"] QLabel#conditionText {
+WeatherApp[condition="mist"] QLabel#conditionText,
+WeatherApp[condition="mist"] QLabel#hourNow {
     color: #b8c4cc;
 }
 
@@ -357,6 +433,7 @@ WeatherApp[condition="night"] QPushButton#searchButton:hover {
     color: #10151d;
 }
 WeatherApp[condition="night"] QLabel#liveBadge,
-WeatherApp[condition="night"] QLabel#conditionText {
+WeatherApp[condition="night"] QLabel#conditionText,
+WeatherApp[condition="night"] QLabel#hourNow {
     color: #b48cff;
 }

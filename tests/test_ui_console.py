@@ -15,8 +15,9 @@ from conftest import VALID_CURRENT_PAYLOAD, VALID_FORECAST_PAYLOAD
 
 from config import BASE_URL, CURRENT_WEATHER_ENDPOINT, FORECAST_ENDPOINT
 from ui import WeatherApp
-from weather_model import ForecastData, WeatherData
+from weather_model import ForecastData, HourData, WeatherData
 from widgets.forecast_table import ForecastTable
+from widgets.hourly_strip import HourlyStrip
 from widgets.sky_widget import SkyWidget
 
 CURRENT_URL = BASE_URL + CURRENT_WEATHER_ENDPOINT
@@ -37,6 +38,15 @@ def no_cache_file():
     yield
 
     CACHE_FILE.unlink(missing_ok=True)
+
+
+def sample_hourly() -> list:
+    return [
+        HourData(hour="NOW", temperature_f=85.0, temperature_c=29.4,
+            weather_id=800),
+        HourData(hour="3 PM", temperature_f=84.0, temperature_c=28.9,
+            weather_id=800),
+    ]
 
 
 def sample_weather() -> WeatherData:
@@ -134,6 +144,11 @@ def test_full_search_through_the_worker(qtbot, requests_mock):
     assert window.temperature_label.text() == "59°F"
     assert window.celsius_label.text() == "15°C"
     assert window.forecast_table.rows[0].day_label.text() != ""
+
+    # The strip rebuilt with the hourly chips from the same payload.
+    assert window.hourly_strip.chip_row.count() > 1
+    first_chip = window.hourly_strip.chip_row.itemAt(0).widget()
+    assert first_chip.hour_label.text() == "NOW"
 
 
 def test_search_failure_shows_the_hand_written_message(qtbot, requests_mock):

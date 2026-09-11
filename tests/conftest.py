@@ -56,6 +56,7 @@ def forecast_item(dt: int, temp: float) -> dict:
 
 
 VALID_FORECAST_PAYLOAD = {
+    "city": {"timezone": 3600},
     "list": [
         forecast_item(1767763200, 50.0),
         forecast_item(1767849600, 60.0),

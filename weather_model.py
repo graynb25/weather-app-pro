@@ -114,3 +114,16 @@ class ForecastData:
     temp_max_c: float = 0.0
 
 
+@dataclass
+class HourData:
+    """
+    One chip in the hourly strip: a three-hour step from the forecast
+    payload, labeled in the city's local time.
+    """
+
+    hour: str          # "NOW", "3 PM", "6 PM", ...
+    temperature_f: float
+    temperature_c: float
+    weather_id: int
+
+

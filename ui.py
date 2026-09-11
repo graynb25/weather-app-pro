@@ -43,6 +43,7 @@ from managers.theme_manager import ThemeManager
 from utils import meters_to_miles, unix_to_local_time
 from datetime import datetime, timedelta, timezone
 from widgets.sky_widget import SkyWidget
+from widgets.hourly_strip import HourlyStrip
 from widgets.stat_tile import StatTile
 from widgets.forecast_table import ForecastTable
 
@@ -94,6 +95,7 @@ class WeatherApp(QMainWindow):
         # table's range bars when a forecast arrives
         self._forecast_accent = None
         self._last_forecast = None
+        self._last_hourly = None
 
         # Background search: the worker lives on its own thread so the
         # window never freezes while a request is in flight
@@ -114,13 +116,14 @@ class WeatherApp(QMainWindow):
         cached = self.weather_cache.load()
 
         if cached is not None:
-            weather, forecast, fetched_at = cached
+            weather, forecast, hourly, fetched_at = cached
 
             self.weather_data = weather
             self.fetched_at = datetime.fromtimestamp(fetched_at)
 
             self.display_weather(weather)
             self.display_forecast(forecast)
+            self.display_hourly(hourly)
 
             self.status_label.setText(
                 f"Showing saved weather for {weather.city} "
@@ -215,9 +218,10 @@ class WeatherApp(QMainWindow):
         self.updated_tile = StatTile("Updated")
 
         # -----------------------------
-        # Forecast table
+        # Hourly strip and forecast table
         # -----------------------------
 
+        self.hourly_strip = HourlyStrip()
         self.forecast_table = ForecastTable()
 
         # -----------------------------
@@ -339,6 +343,9 @@ class WeatherApp(QMainWindow):
                 self._last_forecast, self._forecast_accent
             )
 
+        if self._last_hourly is not None:
+            self.hourly_strip.update_hourly(self._last_hourly)
+
     # ---------------------------------------------------------
     # Layout
     # ---------------------------------------------------------
@@ -417,6 +424,10 @@ class WeatherApp(QMainWindow):
         hero_panel.setLayout(hero_layout)
 
         main_layout.addWidget(hero_panel)
+
+        # Hourly strip
+        main_layout.addWidget(self._micro_title("Next 24 hours"))
+        main_layout.addWidget(self.hourly_strip)
 
         # Measurements
         main_layout.addWidget(self._micro_title("Measurements"))
@@ -550,7 +561,7 @@ class WeatherApp(QMainWindow):
 
         self.begin_search(self.weather_data.city, auto=True)
 
-    def on_search_done(self, weather, forecast) -> None:
+    def on_search_done(self, weather, forecast, hourly) -> None:
         """
         Handle a successful background search.
         """
@@ -558,10 +569,11 @@ class WeatherApp(QMainWindow):
         self.weather_data = weather
         self.fetched_at = datetime.now()
 
-        self.weather_cache.save(weather, forecast)
+        self.weather_cache.save(weather, forecast, hourly)
 
         self.display_weather(weather)
         self.display_forecast(forecast)
+        self.display_hourly(hourly)
 
         self.search_button.setEnabled(True)
 
@@ -704,6 +716,16 @@ class WeatherApp(QMainWindow):
 
         if self._forecast_accent is not None:
             self.forecast_table.update_forecast(forecast, self._forecast_accent)
+
+    def display_hourly(self, hourly: list) -> None:
+        """
+        Display the hourly strip chips.
+        """
+
+        self._last_hourly = hourly
+
+        if self._forecast_accent is not None:
+            self.hourly_strip.update_hourly(hourly)
 
     def display_error(self, message: str) -> None:
         """

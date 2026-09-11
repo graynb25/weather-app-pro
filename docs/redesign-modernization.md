@@ -54,14 +54,14 @@ The hero is now the console layout: a large monospace temperature with
 the condition SVG icon at its left, and the condition name, feels like,
 and hi/lo block on the right, all on a glass panel.
 
-### 4.3 Hourly strip (H)
+### 4.3 Hourly strip (done)
 
-The `/forecast` endpoint already returns 3-hourly entries. Add a
-horizontally scrollable strip (`QScrollArea` with a row of small chips: hour, icon,
-temperature) showing the next 12 to 24 hours. Reuse the forecast data
-already fetched (no second request; parse the same payload into an
-hourly model list). Not part of the chosen glass console preview, so
-this stays open as an optional addition.
+`widgets/hourly_strip.py`: a horizontally scrollable row of glass chips
+(hour, condition icon, monospace temperature) covering the next 24
+hours. Fed from the same forecast payload the daily table uses, no
+second API call; `get_forecast()` now returns `(daily, hourly)` and the
+hour labels use the payload's city timezone. The first chip is NOW and
+takes the condition accent.
 
 ### 4.4 Spacing and card polish (done)
 
@@ -158,7 +158,7 @@ edge cases, autocomplete debounce logic as a pure function).
 
 - [x] 4.1 condition themes wired
 - [x] 4.2 hero layout rework
-- [ ] 4.3 hourly strip
+- [x] 4.3 hourly strip
 - [x] 4.4 spacing and card polish
 - [x] 4.5 typography pass
 - [x] 4.6 dynamic background gradient

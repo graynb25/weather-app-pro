@@ -25,7 +25,7 @@ import logging
 import os
 import time
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import NoReturn
 
 import requests
@@ -35,7 +35,7 @@ from config import (BASE_URL, CURRENT_WEATHER_ENDPOINT, FORECAST_ENDPOINT,
     REQUEST_TIMEOUT, DEFAULT_UNITS, MAX_CITY_LENGTH, RETRY_ATTEMPTS,
     RETRY_BACKOFF_SECONDS, RETRY_AFTER_CAP_SECONDS)
 
-from weather_model import WeatherData, ForecastData
+from weather_model import WeatherData, ForecastData, HourData
 from errors import (InvalidCityError, ApiKeyMissingError,
     ApiKeyInvalidError, CityNotFoundError, RateLimitError, ApiServiceError,
     NetworkError, ApiDataError)
@@ -125,6 +125,15 @@ FORECAST_ITEM_FIELDS = (
     ("weather", 0, "id"),
     ("weather", 0, "description"),
 )
+
+# The hourly strip labels chips in the city's local time, which comes
+# from the forecast payload's city block.
+FORECAST_TOP_FIELDS = (
+    ("list",),
+    ("city", "timezone"),
+)
+
+HOURLY_CHIPS = 8               # eight three-hour steps = next 24 hours
 
 
 def _path_exists(data: dict, path: tuple) -> bool:
@@ -361,15 +370,20 @@ class WeatherAPI:
 
     def _validate_forecast_payload(self, data: dict) -> None:
         """
-        Check that a forecast payload has every field the app reads.
+        Check that a forecast payload has every field the app reads,
+        including the city timezone used by the hourly strip.
 
-        Every entry in "list" must carry the fields used to build a day.
+        Every entry in "list" must carry the fields used to build a day
+        and an hour chip.
 
         Raises:
-            ApiDataError: If the list is missing, empty, or incomplete.
+            ApiDataError: If a field is missing.
         """
 
-        missing = []
+        missing = [
+            path for path in FORECAST_TOP_FIELDS
+            if not _path_exists(data, path)
+        ]
 
         if not _path_exists(data, FORECAST_LIST_FIELD):
             missing.append(FORECAST_LIST_FIELD)
@@ -488,17 +502,21 @@ class WeatherAPI:
     # 5-day forecast
     # ---------------------------------------------------------
 
-    def get_forecast(self, city: str) -> list[ForecastData]:
+    def get_forecast(self, city: str) -> tuple[list[ForecastData], list[HourData]]:
         """
-        Retrieve the 5-day forecast for the specified city.
+        Retrieve the 5-day forecast and the hourly strip for a city.
 
         For each day, the forecast entry closest to midday is used.
+        The hourly strip takes the next eight three-hour entries
+        (24 hours) from the same payload, labeled in the city's local
+        time; the first one is "NOW".
 
         Args:
             city: Name of the city to search for.
 
         Returns:
-            A list of ForecastData objects, one per day, sorted by date.
+            A list of ForecastData objects sorted by date, plus a list
+            of HourData chips.
 
         Raises:
             WeatherAppError: A subclass matching the failure.
@@ -614,4 +632,48 @@ class WeatherAPI:
 
         forecast.sort(key=lambda day: day.date)
 
-        return forecast
+        return forecast, self._build_hourly(data)
+
+    def _build_hourly(self, data: dict) -> list[HourData]:
+        """
+        Build the hourly strip chips from the forecast payload.
+
+        Takes up to HOURLY_CHIPS three-hour entries, skipping any
+        entirely in the past, labeled in the city's local time. The
+        first chip is "NOW".
+        """
+
+        offset = data["city"]["timezone"]
+        now = datetime.now(timezone.utc).timestamp()
+
+        chips: list[HourData] = []
+
+        try:
+            for item in data["list"]:
+                if len(chips) >= HOURLY_CHIPS:
+                    break
+
+                if item["dt"] + 3 * 3600 <= now and chips:
+                    continue
+
+                moment = datetime.fromtimestamp(
+                    item["dt"],
+                    timezone(timedelta(seconds=offset))
+                )
+
+                temperature_f = item["main"]["temp"]
+
+                chips.append(
+                    HourData(
+                        hour="NOW" if not chips
+                        else moment.strftime("%I %p").lstrip("0"),
+                        temperature_f=temperature_f,
+                        temperature_c=fahrenheit_to_celsius(temperature_f),
+                        weather_id=item["weather"][0]["id"],
+                    )
+                )
+        except (KeyError, TypeError, ValueError, OverflowError) as error:
+            logger.error("Hourly conversion failed: %s", type(error).__name__)
+            raise ApiDataError(MESSAGE_BAD_PAYLOAD) from None
+
+        return chips

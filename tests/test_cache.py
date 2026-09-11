@@ -8,7 +8,7 @@ Tests for WeatherCache in cache.py.
 from datetime import datetime
 
 from cache import WeatherCache
-from weather_model import WeatherData, ForecastData
+from weather_model import WeatherData, ForecastData, HourData
 
 
 def sample_weather() -> WeatherData:
@@ -38,25 +38,53 @@ def sample_forecast() -> list[ForecastData]:
     ]
 
 
+def sample_hourly() -> list:
+    return [
+        HourData(hour="NOW", temperature_f=64.0, temperature_c=17.8,
+            weather_id=500),
+        HourData(hour="3 PM", temperature_f=63.0, temperature_c=17.2,
+            weather_id=802),
+    ]
+
+
 def test_roundtrip(tmp_path):
     cache = WeatherCache(tmp_path / "cache.json")
 
     before = datetime.now().replace(microsecond=0)
 
-    cache.save(sample_weather(), sample_forecast())
+    cache.save(sample_weather(), sample_forecast(), sample_hourly())
 
     loaded = cache.load()
 
     assert loaded is not None
 
-    weather, forecast, fetched_at = loaded
+    weather, forecast, hourly, fetched_at = loaded
 
     assert weather.city == "London"
     assert weather.weather_id == 500
     assert weather.temperature_c == 15.0
     assert forecast[0].day == "Mon"
     assert forecast[0].description == "Scattered Clouds"
+    assert hourly[0].hour == "NOW"
+    assert hourly[1].hour == "3 PM"
     assert datetime.fromtimestamp(fetched_at) >= before
+
+
+def test_legacy_cache_without_hourly_loads_with_empty_chips(tmp_path):
+    import json
+
+    path = tmp_path / "cache.json"
+
+    path.write_text(json.dumps({
+        "fetched_at": 1767763200,
+        "weather": sample_weather().__dict__,
+        "forecast": [sample_forecast()[0].__dict__],
+    }), encoding="utf-8")
+
+    loaded = WeatherCache(path).load()
+
+    assert loaded is not None
+    assert loaded[2] == []
 
 
 def test_missing_file_returns_none(tmp_path):

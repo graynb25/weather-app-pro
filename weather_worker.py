@@ -28,8 +28,9 @@ class WeatherWorker(QObject):
     Executes one search at a time on its own thread.
     """
 
-    # WeatherData and the list of ForecastData for the same search.
-    search_done = pyqtSignal(object, object)
+    # WeatherData, the daily forecast, and the hourly chips for the
+    # same search.
+    search_done = pyqtSignal(object, object, object)
 
     # Always a WeatherAppError, never a bare exception.
     search_failed = pyqtSignal(object)
@@ -50,7 +51,7 @@ class WeatherWorker(QObject):
 
         try:
             weather = self.weather_api.get_current_weather(city)
-            forecast = self.weather_api.get_forecast(city)
+            forecast, hourly = self.weather_api.get_forecast(city)
 
         except WeatherAppError as error:
             self.search_failed.emit(error)
@@ -64,4 +65,4 @@ class WeatherWorker(QObject):
             self.search_failed.emit(WeatherAppError(UNEXPECTED_ERROR_MESSAGE))
             return
 
-        self.search_done.emit(weather, forecast)
+        self.search_done.emit(weather, forecast, hourly)

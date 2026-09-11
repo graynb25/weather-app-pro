@@ -23,7 +23,7 @@ from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 
-from weather_model import WeatherData, ForecastData
+from weather_model import WeatherData, ForecastData, HourData
 
 logger = logging.getLogger(f"weather.{__name__}")
 
@@ -41,7 +41,7 @@ class WeatherCache:
         self.path = path
 
     def save(self, weather: WeatherData,
-        forecast: list[ForecastData]) -> None:
+        forecast: list[ForecastData], hourly: list = ()) -> None:
         """
         Write the given result to disk, replacing any previous one.
 
@@ -53,6 +53,7 @@ class WeatherCache:
             "fetched_at": int(datetime.now().timestamp()),
             "weather": asdict(weather),
             "forecast": [asdict(day) for day in forecast],
+            "hourly": [asdict(chip) for chip in hourly],
         }
 
         tmp_path = self.path.with_suffix(".json.tmp")
@@ -65,12 +66,13 @@ class WeatherCache:
 
     def load(self):
         """
-        Return (weather, forecast, fetched_at) from the last save,
-        or None when there is no readable cache.
+        Return (weather, forecast, hourly, fetched_at) from the last
+        save, or None when there is no readable cache.
 
         Corrupt or unexpected files are ignored with a warning rather
         than raised, so a bad cache can never stop the app from
-        starting.
+        starting. Caches written before the hourly strip existed load
+        with an empty hourly list.
         """
 
         if not self.path.exists():
@@ -81,6 +83,7 @@ class WeatherCache:
 
             weather = WeatherData(**payload["weather"])
             forecast = [ForecastData(**day) for day in payload["forecast"]]
+            hourly = [HourData(**chip) for chip in payload.get("hourly", [])]
             fetched_at = int(payload["fetched_at"])
 
         except (OSError, ValueError, KeyError, TypeError) as error:
@@ -91,4 +94,4 @@ class WeatherCache:
 
             return None
 
-        return weather, forecast, fetched_at
+        return weather, forecast, hourly, fetched_at

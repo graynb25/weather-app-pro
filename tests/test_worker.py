@@ -33,7 +33,9 @@ def worker(api):
     worker.done = []
     worker.failed = []
 
-    worker.search_done.connect(lambda w, f: worker.done.append((w, f)))
+    worker.search_done.connect(
+        lambda w, f, h: worker.done.append((w, f, h))
+    )
     worker.search_failed.connect(worker.failed.append)
 
     return worker
@@ -54,10 +56,11 @@ def test_successful_search_emits_done(worker, requests_mock):
     assert len(worker.done) == 1
     assert worker.failed == []
 
-    weather, forecast = worker.done[0]
+    weather, forecast, hourly = worker.done[0]
 
     assert weather.city == "London"
     assert forecast[0].temperature_f == 50.0
+    assert hourly[0].hour in ("NOW",) or "AM" in hourly[0].hour or "PM" in hourly[0].hour
 
 
 def test_failed_search_emits_the_app_error(worker, requests_mock):
