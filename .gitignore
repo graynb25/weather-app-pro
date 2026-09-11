@@ -40,3 +40,7 @@ app.lock
 
 # Private previews and proposals (local only)
 instance/
+# Build outputs (release-plan phase 1)
+build/
+dist/
+release/

@@ -183,6 +183,20 @@
 
 ---
 
+## v0.13
+
+- Build pipeline (release plan phase 1): requirements-build.txt
+  (PyInstaller 6.22.2, Pillow 12.3.0), tools/make_release_assets.py
+  (multi-size app.ico from the clear-sky SVG, Windows version
+  resource from the VERSION file), app.spec (onedir, windowed, no
+  QtWebEngine), and build.ps1 (tests, assets, build, secret scan,
+  portable zip).
+- The built EXE is about 105 MB onedir (43 MB zipped), shows the sun
+  icon and file version in Explorer, stores data in
+  %LOCALAPPDATA%\WeatherAppPro, and passes the secret scan.
+
+---
+
 ## Upcoming
 
-- Release sprint: EXE build pipeline, installer, About dialog.
+- Release sprint: installer, About dialog, clean-machine pass.

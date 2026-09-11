@@ -51,7 +51,8 @@ def scan(root: Path) -> list[str]:
         if path.name.lower() in ENV_FILENAMES:
             findings.append(f"{relative}: environment file present")
 
-        if path.suffix.lower() in {".png", ".jpg", ".ico", ".zip", ".pyc"}:
+        if path.suffix.lower() in {".png", ".jpg", ".ico", ".zip",
+                ".pyc", ".pyd", ".dll", ".exe"}:
             continue
 
         try:

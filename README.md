@@ -122,6 +122,20 @@ These exist as empty placeholder files already:
 
 The improvement roadmap lives in `docs/`.
 
+## Build
+
+Build a portable EXE (requires Inno Setup later for the installer):
+
+```powershell
+pip install -r requirements-build.txt
+powershell -File build.ps1
+```
+
+The script runs the tests, generates the icon and version resource,
+builds `dist\WeatherAppPro\` with PyInstaller, scans the result for
+secret material, and zips it to `release\WeatherAppPro-portable.zip`.
+See `docs/release-plan.md`.
+
 ## Technologies
 
 - Python 3.14

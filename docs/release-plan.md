@@ -121,19 +121,19 @@ hours to activate, which our 401 message already mentions).
 
 ## Phase 1: Build pipeline (the EXE)
 
-- [ ] 1.1 (M) A real icon file: generate a multi-size `app.ico`
+- [x] 1.1 (M) A real icon file: generate a multi-size `app.ico`
   (16 to 256 px) from the clear-sky SVG with a small build script
   (Pillow, dev-only dependency). Commit the `.ico`; the window icon
   code keeps using the SVG.
-- [ ] 1.2 (H) PyInstaller spec: onedir (faster startup than onefile,
+- [x] 1.2 (H) PyInstaller spec: onedir (faster startup than onefile,
   friendlier to antivirus), windowed, icon, bundled resources and
   VERSION, pinned `pyinstaller` in a new `requirements-build.txt`.
-- [ ] 1.3 (L) Windows version-info resource so file properties show
+- [x] 1.3 (L) Windows version-info resource so file properties show
   the version from the VERSION file.
-- [ ] 1.4 (M) One build script (`build.ps1`) that: runs the test
+- [x] 1.4 (M) One build script (`build.ps1`) that: runs the test
   suite, builds the icon, runs PyInstaller, runs the secret scan
   (0.2), and zips the artifact.
-- [ ] 1.5 (H) EXE smoke test script: launch the built EXE, run a
+- [x] 1.5 (H) EXE smoke test script (launch, data directory, log, and process checks automated; the interactive live-API pass is the clean-machine test in 4.2): launch the built EXE, run a
   search against the live API, cycle the six conditions, force a bad
   city, confirm the error path and that data files landed in the data
   directory.
