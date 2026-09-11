@@ -21,11 +21,10 @@ import os
 import sys
 
 from PyQt5.QtCore import QLockFile, Qt
-from PyQt5.QtWidgets import QApplication, QInputDialog, QMessageBox
+from PyQt5.QtWidgets import QApplication, QMessageBox
 
 import paths
 from crash_hooks import install_crash_hooks
-from geocoding import store_key, validate_key
 from logging_setup import setup_logging
 from ui import WeatherApp
 
@@ -69,65 +68,10 @@ def main() -> None:
     # First run: ask for a free OpenWeatherMap key and store it in the
     # data directory. Skipping is fine; the app warns again on search.
     if not window.weather_api.api_key_exists():
-        offer_key_setup(window)
+        window.offer_key_setup()
 
     window.show()
     sys.exit(app.exec())
-
-
-def offer_key_setup(window: WeatherApp) -> None:
-    """
-    Ask for a free OpenWeatherMap API key, validate it with one cheap
-    call, and store it in the data directory.
-
-    The user can skip this and set a key later; the window's warning
-    stays until a working key exists.
-    """
-
-    message = (
-        "Weather App Pro needs a free OpenWeatherMap API key.\n"
-        "Create one at openweathermap.org/appid and paste it below.\n"
-        "(New keys can take up to two hours to activate.)"
-    )
-
-    while True:
-        key, accepted = QInputDialog.getText(
-            window,
-            "Weather App Pro: API key",
-            message,
-        )
-
-        key = key.strip()
-
-        if not accepted or not key:
-            return
-
-        if validate_key(key):
-            store_key(key)
-            os.environ["OPENWEATHER_API_KEY"] = key
-            window.weather_api.api_key = key
-
-            QMessageBox.information(
-                window,
-                "Weather App Pro",
-                "API key saved. You are ready to search.",
-            )
-            return
-
-        message = (
-            "That key was rejected.\n"
-            "Check it on openweathermap.org (new keys can take up to two\n"
-            "hours to activate), then try again."
-        )
-
-        retry = QMessageBox.question(
-            window,
-            "Weather App Pro",
-            message + "\n\nTry again?",
-        )
-
-        if retry != QMessageBox.Yes:
-            return
 
 
 if __name__ == "__main__":

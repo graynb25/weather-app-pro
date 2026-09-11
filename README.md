@@ -27,6 +27,25 @@ and presents them with SVG icons, Lottie animations, and QSS themes.
   the weather, with a palette per condition (clear, cloudy, rain, snow,
   mist, night), switchable from the Condition menu
 
+## Install
+
+- **Installer**: download `WeatherAppPro-setup-<version>.exe` from the
+  GitHub releases and run it (a license and privacy page is part of
+  the wizard). No admin prompt needed for a per-user install.
+- **Portable**: download `WeatherAppPro-portable.zip`, extract
+  anywhere, run `WeatherAppPro.exe`.
+- **From source**: follow Setup below.
+
+You will need a free OpenWeatherMap API key
+(https://openweathermap.org/appid); the app asks for it on first
+start, or set it in `.env` as shown below.
+
+## Screenshots
+
+![Main window, rain](docs/screenshots/main-rain.png)
+
+![Night condition](docs/screenshots/main-night.png)
+
 ## Requirements
 
 - Python 3.14 or newer

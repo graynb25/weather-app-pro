@@ -154,20 +154,20 @@ hours to activate, which our 401 message already mentions).
 
 ## Phase 3: User-facing finish
 
-- [ ] 3.1 (M) About dialog (Help menu or title bar button): app name,
+- [x] 3.1 (M) About dialog (Help menu or title bar button): app name,
   version from the VERSION file, a short description, the data folder
   path, and an offer to open it. Also carries the OpenWeatherMap
   attribution with a link (items 0.11) and points at the notices file
   (0.10). No repo link while the repo is private.
-- [ ] 3.2 (H) First-run key setup UX from 0.4: dialog copy, validation
+- [x] 3.2 (H) First-run key setup UX from 0.4: dialog copy, validation
   feedback, and a clear path to change the key later.
-- [ ] 3.3 (M) README release section: install from the installer, run
+- [x] 3.3 (M) README release section: install from the installer, run
   portable, run from source. Refresh public screenshots under
   `docs/screenshots/` (the previews in `instance/` are private on
   purpose).
-- [ ] 3.4 (L) Keyboard shortcuts pass: Enter already searches; add
+- [x] 3.4 (L) Keyboard shortcuts pass: Enter already searches; add
   Ctrl+F to focus the search box and F1 for About.
-- [ ] 3.5 (M) VERSION bump to 1.0.0 and the changelog entry.
+- [x] 3.5 (M) VERSION bump to 1.0.0 and the changelog entry.
 
 ## Phase 4: Verify and ship
 

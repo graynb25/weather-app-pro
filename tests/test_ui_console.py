@@ -441,6 +441,43 @@ def test_errors_hold_the_status_line_before_it_reverts(qtbot):
     assert window.status_label.text() == "Updated London · just now"
 
 
+def test_about_text_carries_the_essentials(qtbot):
+    import paths
+    from config import APP_VERSION
+
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    text = window._about_text()
+
+    assert APP_VERSION in text
+    assert "OpenWeather" in text
+    assert "openweathermap.org" in text
+    assert "THIRD-PARTY-NOTICES" in text
+    assert str(paths.data_dir()) in text
+
+
+def test_footer_carries_the_attribution(qtbot):
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    assert "OpenWeather" in window.attribution_label.text()
+    assert 'href="https://openweathermap.org/"' in window.attribution_label.text()
+
+
+def test_ctrl_f_shortcut_is_wired(qtbot):
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    assert window.search_shortcut.key().toString() == "Ctrl+F"
+    assert window.search_shortcut.isEnabled() is True
+
+    # The handler's effect: offscreen windows are never active, so
+    # widget-level hasFocus cannot be asserted here. The two-line
+    # handler is exercised by smoke tests on the real platform.
+    window.focus_search()
+
+
 def test_forecast_table_fills_rows(qtbot):
     table = ForecastTable()
     qtbot.addWidget(table)

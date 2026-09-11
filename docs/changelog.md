@@ -212,6 +212,22 @@
 
 ---
 
+## v1.0.0
+
+- Release polish (release plan phase 3): an About dialog (Help menu or
+  F1) with the version, the OpenWeatherMap attribution and link, the
+  license and notices pointers, and an open-data-folder button.
+- Settings menu gained "API key..." so an installed copy can replace
+  a saved key without editing files.
+- Visible footer attribution: "Weather data provided by OpenWeather",
+  required by the free plan terms.
+- Ctrl+F focuses the search box.
+- README gained install instructions and public screenshots
+  (docs/screenshots/).
+- Version 1.0.0.
+
+---
+
 ## Upcoming
 
-- Release sprint: About dialog, clean-machine pass, GitHub release.
+- Release sprint: clean-machine pass, GitHub release with artifacts.

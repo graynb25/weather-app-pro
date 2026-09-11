@@ -23,13 +23,17 @@ Design source: instance/preview/05-glass-console.html (local preview).
 """
 
 import logging
+import os
+
+import paths
 
 from PyQt5.QtCore import Qt, QEvent, QTimer, QThread, pyqtSignal
-from PyQt5.QtGui import QFont, QIcon, QPixmap, QPainter
+from PyQt5.QtGui import QFont, QIcon, QKeySequence, QPixmap, QPainter
 from PyQt5.QtSvg import QSvgRenderer
 from PyQt5.QtWidgets import (QWidget, QMainWindow, QLabel, QPushButton,
     QLineEdit, QVBoxLayout, QGridLayout, QActionGroup, QAction,
-    QHBoxLayout, QFrame, QLayout, QScrollArea, QCompleter)
+    QHBoxLayout, QFrame, QLayout, QScrollArea, QCompleter, QMessageBox,
+    QShortcut)
 from PyQt5.QtCore import QStringListModel
 from geocoding import Geocoder
 
@@ -37,6 +41,7 @@ from config import APP_VERSION, SUGGEST_DEBOUNCE_MS
 from favorites import Favorites
 from weather_api import WeatherAPI
 from weather_worker import WeatherWorker, SuggestWorker
+from geocoding import store_key, validate_key
 from cache import WeatherCache
 from errors import WeatherAppError
 from managers.condition_theme import ConditionTheme
@@ -327,6 +332,15 @@ class WeatherApp(QMainWindow):
         self.version_label = QLabel(APP_VERSION)
         self.version_label.setObjectName("footerLabel")
 
+        # OpenWeatherMap's free plan requires visible attribution on
+        # the screen where the data is shown.
+        self.attribution_label = QLabel(
+            '<a href="https://openweathermap.org/">'
+            "Weather data provided by OpenWeather</a>"
+        )
+        self.attribution_label.setObjectName("footerLabel")
+        self.attribution_label.setOpenExternalLinks(True)
+
         self.time_label = QLabel()
         self.time_label.setObjectName("footerLabel")
 
@@ -440,6 +454,28 @@ class WeatherApp(QMainWindow):
         self.refresh_actions[
             self.settings.get("refresh_minutes")
         ].setChecked(True)
+
+        # -----------------------------------------------------
+        # Help menu
+        # -----------------------------------------------------
+
+        help_menu = menu_bar.addMenu("Help")
+
+        self.about_action = QAction("&About Weather App Pro", self)
+        self.about_action.setShortcut("F1")
+        help_menu.addAction(self.about_action)
+
+        self.about_action.triggered.connect(self.show_about)
+
+        # API key management lives in Settings so an installed copy
+        # can replace a saved key without touching files by hand.
+        api_key_action = QAction("API &key...", self)
+        api_key_action.triggered.connect(self.offer_key_setup)
+        settings_menu.addAction(api_key_action)
+
+        # Ctrl+F jumps to the search box.
+        self.search_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.search_shortcut.activated.connect(self.focus_search)
 
     def set_units(self, units: str) -> None:
         """
@@ -661,6 +697,8 @@ class WeatherApp(QMainWindow):
         footer_layout.addWidget(self.status_label)
         footer_layout.addStretch()
         footer_layout.addWidget(self.version_label)
+        footer_layout.addSpacing(12)
+        footer_layout.addWidget(self.attribution_label)
         footer_layout.addStretch()
         footer_layout.addWidget(self.time_label)
 
@@ -1170,6 +1208,118 @@ class WeatherApp(QMainWindow):
         hours = minutes // 60
 
         return "1 hr ago" if hours == 1 else f"{hours} hr ago"
+
+    # ---------------------------------------------------------
+    # Help and key management
+    # ---------------------------------------------------------
+
+    def show_about(self) -> None:
+        """
+        Show the About dialog: version, attribution, licenses, and the
+        data folder with an offer to open it.
+        """
+
+        box = QMessageBox(self)
+        box.setWindowTitle("About Weather App Pro")
+        box.setTextFormat(Qt.RichText)
+        box.setText(self._about_text())
+
+        open_button = box.addButton("Open data folder", QMessageBox.ActionRole)
+        box.addButton(QMessageBox.Ok)
+
+        box.exec()
+
+        if box.clickedButton() is open_button:
+            os.startfile(str(paths.data_dir()))
+
+    def _about_text(self) -> str:
+        """
+        The About dialog's text (plain HTML).
+        """
+
+        return (
+            f"<h3>Weather App Pro {APP_VERSION}</h3>"
+            "<p>A desktop weather console powered by OpenWeatherMap.</p>"
+            "<p>Weather data provided by "
+            '<a href="https://openweathermap.org/">OpenWeather</a> '
+            "(openweathermap.org). Free plan terms require this "
+            "attribution.</p>"
+            "<p>License: MIT (see LICENSE). Third-party software and "
+            "assets: THIRD-PARTY-NOTICES.md.</p>"
+            "<p>Your data folder:<br>"
+            f"<code>{paths.data_dir()}</code></p>"
+        )
+
+    def focus_search(self) -> None:
+        """
+        Ctrl+F: put the cursor in the search box.
+        """
+
+        self.city_input.setFocus()
+        self.city_input.selectAll()
+
+    def offer_key_setup(self) -> None:
+        """
+        Ask for a free OpenWeatherMap API key, validate it with one
+        cheap call, and store it in the data directory.
+
+        Runs on first start and any time from the Settings menu; the
+        user can skip it and the app keeps warning until a working key
+        exists.
+        """
+
+        first_run = not self.weather_api.api_key_exists()
+
+        if first_run:
+            message = (
+                "Weather App Pro needs a free OpenWeatherMap API key.\n"
+                "Create one at openweathermap.org/appid and paste it below.\n"
+                "(New keys can take up to two hours to activate.)"
+            )
+        else:
+            message = (
+                "Enter a new OpenWeatherMap API key.\n"
+                "It replaces the key saved in the data folder."
+            )
+
+        while True:
+            key, accepted = QInputDialog.getText(
+                self,
+                "Weather App Pro: API key",
+                message,
+            )
+
+            key = key.strip()
+
+            if not accepted or not key:
+                return
+
+            if validate_key(key):
+                store_key(key)
+                os.environ["OPENWEATHER_API_KEY"] = key
+                self.weather_api.api_key = key
+
+                QMessageBox.information(
+                    self,
+                    "Weather App Pro",
+                    "API key saved. You are ready to search.",
+                )
+                return
+
+            message = (
+                "That key was rejected.\n"
+                "Check it on openweathermap.org (new keys can take up to two\n"
+                "hours to activate), then try again."
+            )
+
+            retry = QMessageBox.question(
+                self,
+                "Weather App Pro",
+                message + "\n\nTry again?",
+            )
+
+            if retry != QMessageBox.Yes:
+                return
 
     # ---------------------------------------------------------
     # Shutdown
