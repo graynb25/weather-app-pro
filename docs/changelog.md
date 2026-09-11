@@ -143,7 +143,23 @@
 
 ---
 
+## v0.11
+
+- Fixed the autocomplete popup: it is a top-level window, so the
+  window stylesheet never reached it. The theme is now applied to the
+  popup directly and it renders as a dark glass list.
+- Added the app icon (rendered from the clear-sky SVG) and the window
+  title version.
+- The window centers itself on first show; a saved geometry restores
+  exactly and skips the centering.
+- Added the empty state: a "Search for a city" badge plus three
+  clickable example cities (London, Tokyo, Bogota) in the hero.
+- The footer status line now shows "Updated {city} . X ago" using the
+  last fetch time. Errors hold the line for half a minute before it
+  takes over.
+
+---
+
 ## Upcoming
 
-- Polish batch: app icon, centered first show, empty state,
-  updated-X-minutes-ago.
+- Release sprint: installer, EXE, About dialog.

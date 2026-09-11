@@ -9,6 +9,8 @@ QWebEngine, so it is safe to build in a test process. Searches go
 through the real worker thread with requests_mock underneath.
 """
 
+from datetime import datetime, timedelta
+
 import pytest
 
 from conftest import VALID_CURRENT_PAYLOAD, VALID_FORECAST_PAYLOAD
@@ -359,6 +361,84 @@ def test_short_queries_never_reach_the_worker(qtbot):
 
     assert emitted == []
     assert window.suggest_model.stringList() == []
+
+
+def test_polish_batch(qtbot):
+    """
+    Redesign items 4.9 and 4.10: app icon, theming on the completer
+    popup, the empty state, and the elapsed-time footer.
+    """
+
+    from datetime import timedelta
+
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    # App icon renders something.
+    assert not window.windowIcon().pixmap(64, 64).isNull()
+
+    # The completer popup carries the theme directly: a top-level
+    # widget never inherits the window stylesheet.
+    popup = window.completer.popup()
+
+    assert "suggestPopup" in popup.styleSheet()
+
+    # Empty state: examples visible, meta lines empty.
+    assert window.examples_row.isVisible() is False  # window not shown yet
+    assert window.feels_label.text() == ""
+
+    window.show()
+    qtbot.wait(30)
+
+    assert window.examples_row.isVisible() is True
+
+    window.display_weather(sample_weather())
+
+    assert window.examples_row.isHidden() is True
+    assert window.feels_label.text() == "FEELS LIKE 61°"
+
+
+def test_status_line_shows_elapsed_time(qtbot):
+    from datetime import datetime
+
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    window.display_weather(sample_weather())
+    window.fetched_at = datetime.now() - timedelta(minutes=5)
+
+    window.update_clock()
+
+    assert window.status_label.text() == "Updated London · 5 min ago"
+
+    window.fetched_at = datetime.now()
+
+    window.update_clock()
+
+    assert window.status_label.text() == "Updated London · just now"
+
+
+def test_errors_hold_the_status_line_before_it_reverts(qtbot):
+    from datetime import datetime, timedelta
+    from errors import CityNotFoundError
+
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    window.display_weather(sample_weather())
+
+    window.on_search_failed(CityNotFoundError(
+        "City not found. Check the spelling and try again."))
+
+    window.update_clock()
+
+    assert window.status_label.text().startswith("City not found")
+
+    # Half a minute later the elapsed-time line takes over.
+    window._error_until = datetime.now() - timedelta(seconds=1)
+    window.update_clock()
+
+    assert window.status_label.text() == "Updated London · just now"
 
 
 def test_forecast_table_fills_rows(qtbot):

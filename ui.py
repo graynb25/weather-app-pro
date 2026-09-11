@@ -25,7 +25,7 @@ Design source: instance/preview/05-glass-console.html (local preview).
 import logging
 
 from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
-from PyQt5.QtGui import QFont, QPixmap, QPainter
+from PyQt5.QtGui import QFont, QIcon, QPixmap, QPainter
 from PyQt5.QtSvg import QSvgRenderer
 from PyQt5.QtWidgets import (QWidget, QMainWindow, QLabel, QPushButton,
     QLineEdit, QVBoxLayout, QGridLayout, QActionGroup, QAction,
@@ -114,6 +114,10 @@ class WeatherApp(QMainWindow):
         self._last_forecast = None
         self._last_hourly = None
 
+        # Errors stay on the status line for half a minute before the
+        # elapsed-time line takes the status back.
+        self._error_until = None
+
         # Background search: the worker lives on its own thread so the
         # window never freezes while a request is in flight
         self.weather_thread = QThread()
@@ -140,8 +144,6 @@ class WeatherApp(QMainWindow):
 
 
         # Build the window
-
-        # Build the window
         self.create_widgets()
         self.create_menu()
         self.create_layout()
@@ -161,6 +163,7 @@ class WeatherApp(QMainWindow):
             self.resize(width, height)
             self.move(x, y)
             self._window_size_fitted = True
+            self._geometry_restored = True
 
         # Show the last successful search when starting offline
         cached = self.weather_cache.load()
@@ -272,6 +275,32 @@ class WeatherApp(QMainWindow):
         self.sunset_tile = StatTile("Sunset")
         self.condition_tile = StatTile("Condition")
         self.updated_tile = StatTile("Updated")
+
+        # -----------------------------
+        # Empty state: example cities
+        # -----------------------------
+
+        self.examples_row = QWidget()
+        self.examples_row.setObjectName("examplesRow")
+
+        examples_layout = QHBoxLayout(self.examples_row)
+        examples_layout.setContentsMargins(0, 0, 0, 0)
+        examples_layout.setSpacing(10)
+
+        try_hint = QLabel("Try:")
+        try_hint.setObjectName("stationLabel")
+        examples_layout.addWidget(try_hint)
+
+        for example in ("London", "Tokyo", "Bogota"):
+            chip = QPushButton(example)
+            chip.setObjectName("cityChip")
+            chip.setCursor(Qt.PointingHandCursor)
+            chip.clicked.connect(
+                lambda checked=False, name=example: self.search_favorite(name)
+            )
+            examples_layout.addWidget(chip)
+
+        examples_layout.addStretch()
 
         # -----------------------------
         # Favorites bar
@@ -583,9 +612,15 @@ class WeatherApp(QMainWindow):
         hero_layout.addLayout(meta_layout, 0)
         hero_layout.setAlignment(meta_layout, Qt.AlignVCenter)
 
+        hero_box = QVBoxLayout()
+        hero_box.setContentsMargins(0, 0, 0, 0)
+        hero_box.setSpacing(6)
+        hero_box.addLayout(hero_layout)
+        hero_box.addWidget(self.examples_row, 0, Qt.AlignHCenter)
+
         hero_panel = QFrame()
         hero_panel.setObjectName("heroPanel")
-        hero_panel.setLayout(hero_layout)
+        hero_panel.setLayout(hero_box)
 
         main_layout.addWidget(hero_panel)
 
@@ -852,7 +887,7 @@ class WeatherApp(QMainWindow):
 
         self.weather_cache.save(weather, forecast, hourly)
 
-        self.display_weather(weather)
+        self.display_weather(weather, refresh_timestamp=True)
         self.display_forecast(forecast)
         self.display_hourly(hourly)
 
@@ -890,6 +925,10 @@ class WeatherApp(QMainWindow):
 
         if self.weather_data is not None and self.fetched_at is not None:
             message += f" Showing saved weather from {self.fetched_at:%I:%M %p}."
+
+        # Keep the error visible for half a minute before the
+        # elapsed-time line takes the status back.
+        self._error_until = datetime.now() + timedelta(seconds=30)
 
         self.display_error(message)
 
@@ -937,12 +976,35 @@ class WeatherApp(QMainWindow):
 
         self.flag_label.setPixmap(pixmap)
 
-    def display_weather(self, weather) -> None:
+    def _make_app_icon(self):
+        """
+        Render the clear-sky SVG into a square app icon.
+        """
+
+        renderer = QSvgRenderer(IconManager.get_icon_path(800))
+
+        pixmap = QPixmap(256, 256)
+        pixmap.fill(Qt.transparent)
+
+        painter = QPainter(pixmap)
+        renderer.render(painter)
+        painter.end()
+
+        return QIcon(pixmap)
+
+    def display_weather(self, weather, refresh_timestamp: bool = False) -> None:
         """
         Fill every panel from a WeatherData model.
+
+        A fresh fetch stamps the fetch time; re-displays (unit toggle,
+        cached startup) keep the original timestamp so the elapsed-time
+        line stays honest.
         """
 
         self.weather_data = weather
+
+        if refresh_timestamp or self.fetched_at is None:
+            self.fetched_at = datetime.now()
 
         # The plus chip needs a city on screen to add.
         self.favorites_bar.set_add_enabled(True)
@@ -1005,6 +1067,8 @@ class WeatherApp(QMainWindow):
 
         self.condition_text.setText(weather.description.upper())
 
+        self.examples_row.setVisible(False)
+
         self.humidity_tile.set_value(f"{weather.humidity}", "%")
         self.pressure_tile.set_value(f"{weather.pressure}", "hPa")
         self.sunrise_tile.set_value(
@@ -1019,8 +1083,6 @@ class WeatherApp(QMainWindow):
         self.updated_tile.set_value(f"{fetched:%I:%M %p}", "local")
 
         self._forecast_accent = accent
-
-        self.status_label.setText(f"Weather updated for {weather.city}")
 
         self.update_clock()
 
@@ -1059,14 +1121,24 @@ class WeatherApp(QMainWindow):
     def update_clock(self) -> None:
 
         """
-         Update the local clock and the city clock every second.
+         Update the local clock, the city clock, and the elapsed-time
+         status line every second.
          """
+
+        now = datetime.now()
 
         # The owner's local time. Always ticks, even before the first
         # search, in 12h format like the city clock.
-        self.local_clock_label.setText(datetime.now().strftime("%I:%M:%S %p"))
+        self.local_clock_label.setText(now.strftime("%I:%M:%S %p"))
 
-        if self.weather_data is None:
+        # Let error messages breathe for half a minute before the
+        # elapsed-time line takes the status back.
+        if self._error_until is not None and now < self._error_until:
+            return
+
+        self._error_until = None
+
+        if self.weather_data is None or self.fetched_at is None:
             self.time_label.setText("--:--")
             return
 
@@ -1075,6 +1147,29 @@ class WeatherApp(QMainWindow):
         ))
 
         self.time_label.setText(city_time.strftime("%I:%M:%S %p"))
+
+        self.status_label.setText(
+            f"Updated {self.weather_data.city} \u00b7 {self._elapsed_text(now)}"
+        )
+
+    def _elapsed_text(self, now: datetime) -> str:
+        """
+        Human wording for how long ago the last search ran.
+        """
+
+        seconds = int((now - self.fetched_at).total_seconds())
+
+        if seconds < 60:
+            return "just now"
+
+        minutes = seconds // 60
+
+        if minutes < 60:
+            return "1 min ago" if minutes == 1 else f"{minutes} min ago"
+
+        hours = minutes // 60
+
+        return "1 hr ago" if hours == 1 else f"{hours} hr ago"
 
     # ---------------------------------------------------------
     # Shutdown
@@ -1112,6 +1207,7 @@ class WeatherApp(QMainWindow):
         """
 
         self.setWindowTitle(f"Weather App Pro {APP_VERSION}")
+        self.setWindowIcon(self._make_app_icon())
         self.setMinimumSize(820, 620)
 
         # The window grows to fit the whole console on first show (see
@@ -1119,22 +1215,37 @@ class WeatherApp(QMainWindow):
         # Shorter screens clamp and the scroll area takes over.
         self.resize(1010, 930)
         self._window_size_fitted = False
+        self._geometry_restored = False
 
-        # Defaults before the first search
+        # Defaults before the first search: a short hint and three
+        # clickable example cities in the hero.
         self.temperature_label.setText("--\u00b0F")
         self.celsius_label.setText("--\u00b0C")
         self.condition_text.setText("SEARCH FOR A CITY")
-        self.feels_label.setText("FEELS LIKE --\u00b0")
-        self.minmax_label.setText("H --\u00b0   L --\u00b0")
+        self.feels_label.setText("")
+        self.minmax_label.setText("")
         self.live_badge.setText("\u25cf OFFLINE")
         self.local_clock_label.setText("--:--:-- --")
+        self.time_label.setText("--:--")
         self.status_label.setText("Ready")
+
+        self.examples_row.setVisible(True)
 
         self.time_label.setAlignment(Qt.AlignRight)
 
         # The glass console theme. Accent colors follow the condition
         # through the dynamic property set in apply_condition.
-        self.setStyleSheet(ThemeManager.load_theme("console"))
+        theme = ThemeManager.load_theme("console")
+
+        self.setStyleSheet(theme)
+
+        # The completer popup is a top-level window, so the window
+        # stylesheet does not reach it: hand it the theme directly.
+        popup = self.completer.popup()
+
+        if popup is not None:
+            popup.setObjectName("suggestPopup")
+            popup.setStyleSheet(theme)
 
         self.apply_condition(self.current_condition)
 
@@ -1176,9 +1287,14 @@ class WeatherApp(QMainWindow):
         if frame_extra > 0:
             needed += frame_extra
 
-        available = self.screen().availableGeometry().height()
+        available = self.screen().availableGeometry()
 
-        target = min(needed, available)
+        target = min(needed, available.height())
 
         if not grow_only or target > self.height():
             self.resize(self.width(), target)
+
+        if not self._geometry_restored:
+            frame = self.frameGeometry()
+            frame.moveCenter(available.center())
+            self.move(frame.topLeft())
