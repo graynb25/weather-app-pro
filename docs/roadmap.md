@@ -47,7 +47,7 @@ Detail lives in docs/error-handling-and-security.md.
 
 ## Features
 
-- [ ] Favorite Cities
+- [x] Favorite Cities
 - [ ] Recent Searches
 - [ ] Hourly Forecast
 - [ ] Air Quality

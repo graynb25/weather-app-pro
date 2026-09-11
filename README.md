@@ -9,6 +9,8 @@ and presents them with SVG icons, Lottie animations, and QSS themes.
 - Search weather by city
 - Current temperature in Fahrenheit and Celsius
 - Hour-by-hour strip for the next 24 hours
+- Saved-city favorites: click to search, plus to save the current city
+  (right click removes), capped at 10 and persisted
 - Daily hi/lo range bars for the 5-day forecast
 - Live local clock for the selected city
 - Country flag for the searched city
@@ -79,13 +81,16 @@ weather-app-pro/
 ├── crash_hooks.py           Crash logging and the final error dialog
 ├── cache.py                 Last successful search, saved as JSON
 ├── settings.py              Persisted settings (units, geometry, interval)
+├── favorites.py             Persisted saved cities (capped at 10)
+├── VERSION                  App version, shown in the footer
 ├── config.py                App constants
 ├── utils.py                 Conversion helpers, redact_url
 │
 ├── managers/                IconManager, FlagManager, ThemeManager,
 │                            AnimationManager, ConditionTheme (palettes)
 ├── widgets/                 SkyWidget (animated background), StatTile,
-│                            RangeBar, ForecastTable, HourlyStrip, LottieWidget
+│                            RangeBar, ForecastTable, HourlyStrip,
+│                            FavoritesBar, LottieWidget
 ├── resources/               Icons, animations, lottie player, console.qss theme
 ├── tests/                   pytest suites (API, worker, sky, range bars, UI)
 ├── docs/                    Improvement plans (redesign, testing, security)

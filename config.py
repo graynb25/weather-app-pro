@@ -1,5 +1,18 @@
 # config.py
 
+from pathlib import Path
+
+# The app version, kept in the VERSION file next to this module and
+# bumped with every release. Displayed in the footer and window title.
+try:
+    _version = (Path(__file__).resolve().parent / "VERSION").read_text(
+        encoding="utf-8"
+    ).strip()
+except OSError:
+    _version = "0.0.0"
+
+APP_VERSION = f"v{_version}"
+
 BASE_URL = "https://api.openweathermap.org/data/2.5"
 
 CURRENT_WEATHER_ENDPOINT = "/weather"

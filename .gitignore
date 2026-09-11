@@ -32,5 +32,8 @@ cache.json
 # User settings (written at runtime)
 settings.json
 
+# Saved cities (written at runtime)
+favorites.json
+
 # Private previews and proposals (local only)
 instance/

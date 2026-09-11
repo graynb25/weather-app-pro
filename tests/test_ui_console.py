@@ -27,16 +27,21 @@ FORECAST_URL = BASE_URL + FORECAST_ENDPOINT
 @pytest.fixture(autouse=True)
 def isolated_runtime_files(tmp_path, monkeypatch):
     """
-    Point the cache and settings files at the test's tmp directory so
-    tests never touch (or inherit) the owner's real runtime files.
+    Point the runtime files (cache, settings, favorites) at the test's
+    tmp directory so tests never touch (or inherit) the owner's real
+    files.
     """
 
     import cache
+    import favorites as favorites_module
     import settings as settings_module
 
     monkeypatch.setattr(cache, "CACHE_FILE", tmp_path / "cache.json")
     monkeypatch.setattr(
         settings_module, "SETTINGS_FILE", tmp_path / "settings.json"
+    )
+    monkeypatch.setattr(
+        favorites_module, "FAVORITES_FILE", tmp_path / "favorites.json"
     )
 
     yield
@@ -244,6 +249,46 @@ def test_units_and_condition_persist_for_the_next_window(qtbot):
     assert reowned.condition_mode == "night"
     assert reowned.sky.condition == "night"
     assert reowned.condition_actions["night"].isChecked()
+
+
+def test_version_chip_shows_the_app_version(qtbot):
+    from config import APP_VERSION
+
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    assert window.version_label.text() == APP_VERSION
+    assert APP_VERSION.startswith("v")
+    assert window.windowTitle().endswith(APP_VERSION)
+
+
+def test_add_and_click_a_favorite(qtbot, requests_mock):
+    requests_mock.get(CURRENT_URL, status_code=200, json=VALID_CURRENT_PAYLOAD)
+    requests_mock.get(FORECAST_URL, status_code=200, json=VALID_FORECAST_PAYLOAD)
+
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    # Nothing on screen yet: the plus chip has nothing to add.
+    assert window.favorites_bar.add_chip.isEnabled() is False
+
+    window.display_weather(sample_weather())
+    assert window.favorites_bar.add_chip.isEnabled() is True
+
+    window.favorites_bar.add_chip.click()
+    assert window.status_label.text() == "Added London to favorites."
+
+    window.favorites_bar.add_chip.click()
+    assert window.status_label.text() == "London is already in favorites."
+
+    city_chip = window.favorites_bar.row.itemAt(0).widget()
+    city_chip.click()
+
+    assert window.city_input.text() == "London"
+
+    qtbot.waitUntil(lambda: window.search_button.isEnabled(), timeout=10000)
+
+    assert window.weather_data.city == "London"
 
 
 def test_forecast_table_fills_rows(qtbot):

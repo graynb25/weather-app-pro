@@ -116,7 +116,18 @@
 
 ---
 
+## v0.9
+
+- Added favorites (favorites.py, widgets/favorites_bar.py): a row of
+  saved-city chips under the search bar. Click a chip to search it,
+  right click to remove it, and the plus chip saves the city currently
+  on screen. Capped at 10, deduped case-insensitively, persisted on
+  every change with defensive IO.
+- Added the VERSION file and a version chip in the footer center. The
+  window title carries the version too.
+
+---
+
 ## Upcoming
 
-- Favorites.
 - Search autocomplete.

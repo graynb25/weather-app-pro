@@ -31,6 +31,8 @@ from PyQt5.QtWidgets import (QWidget, QMainWindow, QLabel, QPushButton,
     QLineEdit, QVBoxLayout, QGridLayout, QActionGroup, QAction,
     QHBoxLayout, QFrame, QLayout, QScrollArea)
 
+from config import APP_VERSION
+from favorites import Favorites
 from weather_api import WeatherAPI
 from weather_worker import WeatherWorker
 from cache import WeatherCache
@@ -44,6 +46,7 @@ from utils import (meters_to_km, meters_to_miles, miles_per_hour_to_kmh,
     unix_to_local_time)
 from datetime import datetime, timedelta, timezone
 from widgets.sky_widget import SkyWidget
+from widgets.favorites_bar import FavoritesBar
 from widgets.hourly_strip import HourlyStrip
 from widgets.stat_tile import StatTile
 from widgets.forecast_table import ForecastTable
@@ -73,6 +76,9 @@ class WeatherApp(QMainWindow):
         # interval, window geometry. Never holds the API key.
         self.settings = Settings()
         self.units = self.settings.get("units")
+
+        # Persisted saved cities
+        self.favorites = Favorites()
 
         # Stores the latest weather response
         self.weather_data = None
@@ -235,6 +241,14 @@ class WeatherApp(QMainWindow):
         self.updated_tile = StatTile("Updated")
 
         # -----------------------------
+        # Favorites bar
+        # -----------------------------
+
+        self.favorites_bar = FavoritesBar()
+        self.favorites_bar.set_cities(self.favorites.get())
+        self.favorites_bar.set_add_enabled(False)
+
+        # -----------------------------
         # Hourly strip and forecast table
         # -----------------------------
 
@@ -247,6 +261,9 @@ class WeatherApp(QMainWindow):
 
         self.status_label = QLabel()
         self.status_label.setObjectName("footerLabel")
+
+        self.version_label = QLabel(APP_VERSION)
+        self.version_label.setObjectName("footerLabel")
 
         self.time_label = QLabel()
         self.time_label.setObjectName("footerLabel")
@@ -502,6 +519,7 @@ class WeatherApp(QMainWindow):
         search_layout.addWidget(self.search_button)
 
         main_layout.addLayout(search_layout)
+        main_layout.addWidget(self.favorites_bar)
 
         # Hero
         hero_layout = QHBoxLayout()
@@ -574,6 +592,8 @@ class WeatherApp(QMainWindow):
 
         footer_layout.addWidget(self.status_label)
         footer_layout.addStretch()
+        footer_layout.addWidget(self.version_label)
+        footer_layout.addStretch()
         footer_layout.addWidget(self.time_label)
 
         main_layout.addLayout(footer_layout)
@@ -627,6 +647,11 @@ class WeatherApp(QMainWindow):
         # Quietly repeat the last search on a fixed interval.
         self.refresh_timer.timeout.connect(self.auto_refresh)
 
+        # Favorites: click searches, plus saves, right click removes.
+        self.favorites_bar.city_clicked.connect(self.search_favorite)
+        self.favorites_bar.add_requested.connect(self.add_current_city)
+        self.favorites_bar.remove_requested.connect(self.remove_favorite)
+
     # ---------------------------------------------------------
     # Search flow
     # ---------------------------------------------------------
@@ -645,6 +670,46 @@ class WeatherApp(QMainWindow):
             return
 
         self.begin_search(city, auto=False)
+
+    def search_favorite(self, city: str) -> None:
+        """
+        Search a saved city and show it in the box.
+        """
+
+        self.city_input.setText(city)
+        self.begin_search(city, auto=False)
+
+    def add_current_city(self) -> None:
+        """
+        Save the city currently on screen.
+        """
+
+        if self.weather_data is None:
+            return
+
+        city = self.weather_data.city
+
+        if self.favorites.contains(city):
+            self.display_error(f"{city} is already in favorites.")
+            return
+
+        if not self.favorites.add(city):
+            self.display_error(
+                f"Favorites are full ({Favorites.MAX_FAVORITES} cities)."
+            )
+            return
+
+        self.favorites_bar.set_cities(self.favorites.get())
+        self.status_label.setText(f"Added {city} to favorites.")
+
+    def remove_favorite(self, city: str) -> None:
+        """
+        Remove a saved city.
+        """
+
+        if self.favorites.remove(city):
+            self.favorites_bar.set_cities(self.favorites.get())
+            self.status_label.setText(f"Removed {city} from favorites.")
 
     def begin_search(self, city: str, auto: bool) -> None:
         """
@@ -775,6 +840,9 @@ class WeatherApp(QMainWindow):
         """
 
         self.weather_data = weather
+
+        # The plus chip needs a city on screen to add.
+        self.favorites_bar.set_add_enabled(True)
 
         condition = self.resolve_condition(weather)
         self.apply_condition(condition)
@@ -935,7 +1003,7 @@ class WeatherApp(QMainWindow):
         Apply the glass console stylesheet and window defaults.
         """
 
-        self.setWindowTitle("Weather App Pro")
+        self.setWindowTitle(f"Weather App Pro {APP_VERSION}")
         self.setMinimumSize(820, 620)
 
         # The window grows to fit the whole console on first show (see

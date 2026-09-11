@@ -296,6 +296,44 @@ QLabel#footerLabel {
 }
 
 /* =====================================================
+   Favorites bar
+   ===================================================== */
+
+QFrame#favoritesBar {
+    background: transparent;
+}
+
+QPushButton#cityChip, QPushButton#addChip {
+    background: rgba(11, 16, 25, 150);
+    border: 1px solid rgba(255, 255, 255, 36);
+    border-radius: 14px;
+    padding: 5px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(238, 242, 247, 225);
+}
+
+QPushButton#cityChip:hover, QPushButton#addChip:hover {
+    background: rgba(11, 16, 25, 200);
+    border: 1px solid rgba(255, 255, 255, 60);
+}
+
+QPushButton#cityChip:pressed, QPushButton#addChip:pressed {
+    background: rgba(4, 8, 16, 200);
+}
+
+QPushButton#addChip {
+    font-size: 14px;
+    font-weight: 800;
+    padding: 5px 10px;
+}
+
+QPushButton#addChip:disabled {
+    color: rgba(238, 242, 247, 110);
+    border-color: rgba(255, 255, 255, 20);
+}
+
+/* =====================================================
    Hourly strip
    ===================================================== */
 
