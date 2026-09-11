@@ -461,6 +461,7 @@ class WeatherApp(QMainWindow):
         content = QWidget()
         content.setObjectName("consoleContent")
         content.setLayout(main_layout)
+        self._console_content = content
 
         scroll = QScrollArea()
         scroll.setObjectName("consoleScroll")
@@ -754,7 +755,12 @@ class WeatherApp(QMainWindow):
 
         self.setWindowTitle("Weather App Pro")
         self.setMinimumSize(820, 620)
-        self.resize(1010, 860)
+
+        # The window grows to fit the whole console on first show (see
+        # showEvent), so nothing needs scrolling on a normal screen.
+        # Shorter screens clamp and the scroll area takes over.
+        self.resize(1010, 930)
+        self._window_size_fitted = False
 
         # Defaults before the first search
         self.temperature_label.setText("--\u00b0F")
@@ -773,3 +779,34 @@ class WeatherApp(QMainWindow):
         self.setStyleSheet(ThemeManager.load_theme("console"))
 
         self.apply_condition(self.current_condition)
+
+    def showEvent(self, event) -> None:
+        """
+        On first show, size the window to the console's measured
+        height, clamped to the screen.
+
+        The comfortable height depends on real font metrics and the
+        title bar, neither of which are known before showing.
+        """
+
+        super().showEvent(event)
+
+        if self._window_size_fitted:
+            return
+
+        self._window_size_fitted = True
+
+        needed = (
+            self._console_content.sizeHint().height()
+            + self.menuBar().height()
+            + 2
+        )
+
+        frame_extra = self.frameGeometry().height() - self.height()
+
+        if frame_extra > 0:
+            needed += frame_extra
+
+        available = self.screen().availableGeometry().height()
+
+        self.resize(self.width(), min(needed, available))
