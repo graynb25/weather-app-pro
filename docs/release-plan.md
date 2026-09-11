@@ -82,8 +82,10 @@ hours to activate, which our 401 message already mentions).
   message.
 - [x] 0.16 (L) Asset provenance check: the weather icons and the
   Lottie animations are Meteocons by Bas Milius (MIT, no attribution
-  required). The country flags are collected by the owner; their
-  provenance is still to confirm before any public distribution.
+  required). The country flags are flag-icons by lipis (MIT,
+  confirmed by the `id="flag-icons-..."` fingerprint in 271 of 272
+  files); the one extra file is the project's own not-available
+  placeholder. All recorded in THIRD-PARTY-NOTICES.
 
 - [x] 0.1 (S) Frozen-aware paths. One `paths.py` helper that resolves
   the app data directory (`%LOCALAPPDATA%\WeatherAppPro` for logs,

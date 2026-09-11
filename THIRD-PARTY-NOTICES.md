@@ -43,8 +43,10 @@ anyway with thanks).
 
 ### Country flags (resources/icons/flags)
 
-Collected by the project owner. Provenance to be confirmed before any
-public distribution; flagged in docs/release-plan.md item 0.16.
+flag-icons by Panayiotis (lipis) Lipiridis
+(https://github.com/lipis/flag-icons). MIT license, free for personal
+and commercial use; no attribution required (given anyway with
+thanks). The `not-available` placeholder flag is the project's own.
 
 ## Disclaimers
 
