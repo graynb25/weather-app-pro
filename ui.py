@@ -333,10 +333,12 @@ class WeatherApp(QMainWindow):
         self.version_label.setObjectName("footerLabel")
 
         # OpenWeatherMap's free plan requires visible attribution on
-        # the screen where the data is shown.
+        # the screen where the data is shown. The link color is set
+        # inline: rich-text links default to the palette's blue.
         self.attribution_label = QLabel(
             '<a href="https://openweathermap.org/">'
-            "Weather data provided by OpenWeather</a>"
+            '<span style="color:#dfe8f2;">'
+            "Weather data provided by OpenWeather</span></a>"
         )
         self.attribution_label.setObjectName("footerLabel")
         self.attribution_label.setOpenExternalLinks(True)
@@ -1241,7 +1243,8 @@ class WeatherApp(QMainWindow):
             f"<h3>Weather App Pro {APP_VERSION}</h3>"
             "<p>A desktop weather console powered by OpenWeatherMap.</p>"
             "<p>Weather data provided by "
-            '<a href="https://openweathermap.org/">OpenWeather</a> '
+            '<a href="https://openweathermap.org/">'
+            '<span style="color:#dfe8f2;">OpenWeather</span></a> '
             "(openweathermap.org). Free plan terms require this "
             "attribution.</p>"
             "<p>License: MIT (see LICENSE). Third-party software and "
