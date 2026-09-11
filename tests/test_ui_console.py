@@ -25,19 +25,21 @@ FORECAST_URL = BASE_URL + FORECAST_ENDPOINT
 
 
 @pytest.fixture(autouse=True)
-def no_cache_file():
+def isolated_runtime_files(tmp_path, monkeypatch):
     """
-    Keep the runtime cache file out of the test run: a saved search
-    from one test would otherwise greet the next window as stale data.
+    Point the cache and settings files at the test's tmp directory so
+    tests never touch (or inherit) the owner's real runtime files.
     """
 
-    from cache import CACHE_FILE
+    import cache
+    import settings as settings_module
 
-    CACHE_FILE.unlink(missing_ok=True)
+    monkeypatch.setattr(cache, "CACHE_FILE", tmp_path / "cache.json")
+    monkeypatch.setattr(
+        settings_module, "SETTINGS_FILE", tmp_path / "settings.json"
+    )
 
     yield
-
-    CACHE_FILE.unlink(missing_ok=True)
 
 
 def sample_hourly() -> list:
@@ -192,6 +194,56 @@ def test_console_height_does_not_grow_after_a_search(qtbot):
     # A pixel of rounding from font metrics is fine; the pre-search
     # fit adds slack for it.
     assert after - before <= 2
+
+
+def test_units_toggle_refreshes_every_panel(qtbot):
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    window.display_weather(sample_weather())
+    window.display_forecast(sample_forecast())
+    window.display_hourly(sample_hourly())
+
+    assert window.temperature_label.text() == "64°F"
+    assert window.wind_tile.value_label.text() == "8"
+    assert window.wind_tile.unit_label.text() == "mph"
+
+    window.set_units("metric")
+
+    assert window.temperature_label.text() == "18°C"
+    assert window.celsius_label.text() == "64°F"
+    assert window.feels_label.text() == "FEELS LIKE 16°"
+    assert window.wind_tile.value_label.text() == "12"
+    assert window.wind_tile.unit_label.text() == "km/h"
+    assert window.visibility_tile.value_label.text() == "10"
+    assert window.visibility_tile.unit_label.text() == "km"
+
+    row = window.forecast_table.rows[0]
+
+    assert row.values_label.text().startswith("21°")
+    assert "12°" in row.values_label.text()
+
+    chip = window.hourly_strip.chip_row.itemAt(0).widget()
+
+    assert chip.temp_label.text() == "29°"
+
+
+def test_units_and_condition_persist_for_the_next_window(qtbot):
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    window.set_units("metric")
+    window.set_condition_mode("night")
+
+    window.close()
+
+    reowned = WeatherApp()
+    qtbot.addWidget(reowned)
+
+    assert reowned.units == "metric"
+    assert reowned.condition_mode == "night"
+    assert reowned.sky.condition == "night"
+    assert reowned.condition_actions["night"].isChecked()
 
 
 def test_forecast_table_fills_rows(qtbot):

@@ -37,8 +37,8 @@ class WeatherCache:
     Reads and writes the last successful weather result.
     """
 
-    def __init__(self, path: Path = CACHE_FILE):
-        self.path = path
+    def __init__(self, path=None):
+        self.path = Path(path) if path else CACHE_FILE
 
     def save(self, weather: WeatherData,
         forecast: list[ForecastData], hourly: list = ()) -> None:

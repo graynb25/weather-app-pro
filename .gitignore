@@ -29,5 +29,8 @@ logs/
 # Cached weather data (written at runtime)
 cache.json
 
+# User settings (written at runtime)
+settings.json
+
 # Private previews and proposals (local only)
 instance/

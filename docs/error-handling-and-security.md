@@ -239,7 +239,7 @@ Replace the inline Celsius math in `weather_api.py` with
 - [x] 3.3 last result cache
 - [x] 3.4 quiet auto refresh (blocks REFRESH_INTERVAL feature)
 - [x] 3.5 first-run key check
-- [ ] 3.6 defensive favorites/settings IO (when implemented)
+- [ ] 3.6 defensive favorites IO (settings IO shipped in v0.8)
 - [x] 3.7 global crash hook
 - [x] 3.8 utils conversions used everywhere
 

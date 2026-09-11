@@ -58,9 +58,9 @@ class HourChip(QFrame):
 
         self.setLayout(layout)
 
-    def update_chip(self, chip, is_now: bool) -> None:
+    def update_chip(self, chip, is_now: bool, units: str = "imperial") -> None:
         """
-        Fill the chip from an HourData model.
+        Fill the chip from an HourData model, in the selected unit.
         """
 
         self.hour_label.setText(chip.hour.upper())
@@ -70,7 +70,10 @@ class HourChip(QFrame):
         else:
             self.hour_label.setObjectName("hourLabel")
 
-        self.temp_label.setText(f"{chip.temperature_f:.0f}\u00b0")
+        if units == "metric":
+            self.temp_label.setText(f"{chip.temperature_c:.0f}\u00b0")
+        else:
+            self.temp_label.setText(f"{chip.temperature_f:.0f}\u00b0")
 
         renderer = QSvgRenderer(IconManager.get_icon_path(chip.weather_id))
 
@@ -116,9 +119,11 @@ class HourlyStrip(QFrame):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(scroll)
 
-    def update_hourly(self, hourly: list, accent: str = "") -> None:
+    def update_hourly(self, hourly: list, units: str = "imperial",
+        accent: str = "") -> None:
         """
-        Rebuild the chips from a list of HourData models.
+        Rebuild the chips from a list of HourData models, in the
+        selected unit.
 
         The accent parameter is accepted for symmetry with the
         forecast table; the NOW color comes from the stylesheet's
@@ -132,6 +137,6 @@ class HourlyStrip(QFrame):
 
         for index, chip in enumerate(hourly[:MAX_CHIPS]):
             widget = HourChip()
-            widget.update_chip(chip, is_now=(index == 0))
+            widget.update_chip(chip, is_now=(index == 0), units=units)
 
             self.chip_row.insertWidget(self.chip_row.count() - 1, widget)

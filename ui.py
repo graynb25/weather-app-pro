@@ -34,13 +34,14 @@ from PyQt5.QtWidgets import (QWidget, QMainWindow, QLabel, QPushButton,
 from weather_api import WeatherAPI
 from weather_worker import WeatherWorker
 from cache import WeatherCache
-from config import REFRESH_INTERVAL
 from errors import WeatherAppError
 from managers.condition_theme import ConditionTheme
 from managers.icon_manager import IconManager
 from managers.flag_manager import FlagManager
 from managers.theme_manager import ThemeManager
-from utils import meters_to_miles, unix_to_local_time
+from settings import REFRESH_MINUTES, Settings
+from utils import (meters_to_km, meters_to_miles, miles_per_hour_to_kmh,
+    unix_to_local_time)
 from datetime import datetime, timedelta, timezone
 from widgets.sky_widget import SkyWidget
 from widgets.hourly_strip import HourlyStrip
@@ -67,6 +68,11 @@ class WeatherApp(QMainWindow):
 
         # Weather API object
         self.weather_api = WeatherAPI()
+
+        # Persisted user settings: units, condition mode, refresh
+        # interval, window geometry. Never holds the API key.
+        self.settings = Settings()
+        self.units = self.settings.get("units")
 
         # Stores the latest weather response
         self.weather_data = None
@@ -111,6 +117,17 @@ class WeatherApp(QMainWindow):
         self.apply_styles()
 
         self.weather_thread.start()
+
+        # Restore the saved window geometry when it is usable; the
+        # first-show fit only runs when there is nothing to restore.
+        saved = self.settings.get("window")
+
+        if saved is not None:
+            x, y, width, height = saved
+
+            self.resize(width, height)
+            self.move(x, y)
+            self._window_size_fitted = True
 
         # Show the last successful search when starting offline
         cached = self.weather_cache.load()
@@ -281,7 +298,102 @@ class WeatherApp(QMainWindow):
 
             self.condition_actions[key] = action
 
-        self.condition_actions["auto"].setChecked(True)
+        stored_mode = self.settings.get("condition_mode")
+
+        if stored_mode in self.condition_actions:
+            self.condition_mode = stored_mode
+            self.condition_actions[stored_mode].setChecked(True)
+
+            if stored_mode != "auto":
+                self.current_condition = stored_mode
+        else:
+            self.condition_actions["auto"].setChecked(True)
+
+        # -----------------------------------------------------
+        # Settings menu
+        # -----------------------------------------------------
+
+        settings_menu = menu_bar.addMenu("Settings")
+
+        self.units_group = QActionGroup(self)
+
+        self.imperial_action = QAction("Imperial units", self)
+        self.metric_action = QAction("Metric units", self)
+
+        for action in (self.imperial_action, self.metric_action):
+            action.setCheckable(True)
+            self.units_group.addAction(action)
+            settings_menu.addAction(action)
+
+        settings_menu.addSeparator()
+
+        refresh_menu = settings_menu.addMenu("Auto refresh")
+
+        self.refresh_group = QActionGroup(self)
+        self.refresh_actions = {}
+
+        for minutes in REFRESH_MINUTES:
+            action = QAction(f"{minutes} minutes", self)
+            action.setCheckable(True)
+
+            self.refresh_group.addAction(action)
+            refresh_menu.addAction(action)
+
+            action.triggered.connect(
+                lambda checked, value=minutes: self.set_refresh_minutes(value)
+            )
+
+            self.refresh_actions[minutes] = action
+
+        units_action = (
+            self.imperial_action if self.units == "imperial"
+            else self.metric_action
+        )
+        units_action.setChecked(True)
+
+        self.imperial_action.triggered.connect(
+            lambda: self.set_units("imperial")
+        )
+        self.metric_action.triggered.connect(
+            lambda: self.set_units("metric")
+        )
+
+        self.refresh_actions[
+            self.settings.get("refresh_minutes")
+        ].setChecked(True)
+
+    def set_units(self, units: str) -> None:
+        """
+        Switch the display units and refresh everything on screen.
+
+        The API always fetches imperial; the models carry both units,
+        so this is pure display state.
+        """
+
+        if units == self.units:
+            return
+
+        self.units = units
+        self.settings.set("units", units)
+
+        if self.weather_data is not None:
+            self.display_weather(self.weather_data)
+
+            if self._last_forecast is not None:
+                self.display_forecast(self._last_forecast)
+
+            if self._last_hourly is not None:
+                self.display_hourly(self._last_hourly)
+
+    def set_refresh_minutes(self, minutes: int) -> None:
+        """
+        Persist a new auto refresh interval and apply it live.
+        """
+
+        self.settings.set("refresh_minutes", minutes)
+
+        if self.refresh_timer.isActive():
+            self.refresh_timer.start(minutes * 60_000)
 
     def set_condition_mode(self, mode: str) -> None:
         """
@@ -293,6 +405,7 @@ class WeatherApp(QMainWindow):
         """
 
         self.condition_mode = mode
+        self.settings.set("condition_mode", mode)
 
         if self.weather_data is not None:
             self.apply_condition(self.resolve_condition(self.weather_data))
@@ -344,7 +457,7 @@ class WeatherApp(QMainWindow):
             )
 
         if self._last_hourly is not None:
-            self.hourly_strip.update_hourly(self._last_hourly)
+            self.hourly_strip.update_hourly(self._last_hourly, self.units)
 
     # ---------------------------------------------------------
     # Layout
@@ -577,7 +690,9 @@ class WeatherApp(QMainWindow):
 
         self.search_button.setEnabled(True)
 
-        self.refresh_timer.start(REFRESH_INTERVAL)
+        self.refresh_timer.start(
+            self.settings.get("refresh_minutes") * 60_000
+        )
 
         # If the filled console is taller than the window (it should
         # not be, but fonts and metrics vary), grow to fit rather
@@ -659,6 +774,8 @@ class WeatherApp(QMainWindow):
         Fill every panel from a WeatherData model.
         """
 
+        self.weather_data = weather
+
         condition = self.resolve_condition(weather)
         self.apply_condition(condition)
         accent = ConditionTheme.accent(condition)
@@ -672,20 +789,52 @@ class WeatherApp(QMainWindow):
 
         self.live_badge.setText(f"\u25cf LIVE  {weather.description.upper()}")
 
-        self.temperature_label.setText(f"{weather.temperature_f:.0f}\u00b0F")
-        self.celsius_label.setText(f"{weather.temperature_c:.0f}\u00b0C")
+        if self.units == "metric":
+            self.temperature_label.setText(
+                f"{weather.temperature_c:.0f}\u00b0C"
+            )
+            self.celsius_label.setText(
+                f"{weather.temperature_f:.0f}\u00b0F"
+            )
+
+            self.feels_label.setText(
+                f"FEELS LIKE {weather.feels_like_c:.0f}\u00b0"
+            )
+            self.minmax_label.setText(
+                f"H {weather.temp_max_c:.0f}\u00b0   "
+                f"L {weather.temp_min_c:.0f}\u00b0"
+            )
+
+            self.wind_tile.set_value(
+                f"{miles_per_hour_to_kmh(weather.wind_speed):.0f}", "km/h"
+            )
+            self.visibility_tile.set_value(
+                f"{meters_to_km(weather.visibility):.0f}", "km"
+            )
+        else:
+            self.temperature_label.setText(
+                f"{weather.temperature_f:.0f}\u00b0F"
+            )
+            self.celsius_label.setText(
+                f"{weather.temperature_c:.0f}\u00b0C"
+            )
+
+            self.feels_label.setText(
+                f"FEELS LIKE {weather.feels_like_f:.0f}\u00b0"
+            )
+            self.minmax_label.setText(
+                f"H {weather.temp_max_f:.0f}\u00b0   "
+                f"L {weather.temp_min_f:.0f}\u00b0"
+            )
+
+            self.wind_tile.set_value(f"{weather.wind_speed:.0f}", "mph")
+            self.visibility_tile.set_value(
+                f"{meters_to_miles(weather.visibility):.0f}", "mi"
+            )
 
         self.condition_text.setText(weather.description.upper())
-        self.feels_label.setText(f"FEELS LIKE {weather.feels_like_f:.0f}\u00b0")
-        self.minmax_label.setText(
-            f"H {weather.temp_max_f:.0f}\u00b0   L {weather.temp_min_f:.0f}\u00b0"
-        )
 
         self.humidity_tile.set_value(f"{weather.humidity}", "%")
-        self.wind_tile.set_value(f"{weather.wind_speed:.0f}", "mph")
-        self.visibility_tile.set_value(
-            f"{meters_to_miles(weather.visibility):.0f}", "mi"
-        )
         self.pressure_tile.set_value(f"{weather.pressure}", "hPa")
         self.sunrise_tile.set_value(
             unix_to_local_time(weather.sunrise, weather.timezone)
@@ -715,7 +864,9 @@ class WeatherApp(QMainWindow):
         self._last_forecast = forecast
 
         if self._forecast_accent is not None:
-            self.forecast_table.update_forecast(forecast, self._forecast_accent)
+            self.forecast_table.update_forecast(
+                forecast, self._forecast_accent, self.units
+            )
 
     def display_hourly(self, hourly: list) -> None:
         """
@@ -725,7 +876,7 @@ class WeatherApp(QMainWindow):
         self._last_hourly = hourly
 
         if self._forecast_accent is not None:
-            self.hourly_strip.update_hourly(hourly)
+            self.hourly_strip.update_hourly(hourly, self.units)
 
     def display_error(self, message: str) -> None:
         """
@@ -765,6 +916,10 @@ class WeatherApp(QMainWindow):
 
         self.refresh_timer.stop()
         self.timer.stop()
+
+        self.settings.set("window", [
+            self.x(), self.y(), self.width(), self.height()
+        ])
 
         self.weather_thread.quit()
         self.weather_thread.wait(2000)

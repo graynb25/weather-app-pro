@@ -52,6 +52,16 @@ def meters_per_second_to_kmh(speed: float) -> float:
 
     return speed * 3.6
 
+def miles_per_hour_to_kmh(speed: float) -> float:
+    """
+    Convert miles/hour to kilometers/hour.
+
+    The API is queried in imperial, so wind arrives as mph and the
+    metric display converts from there.
+    """
+
+    return speed * 1.609344
+
 # ---------------------------------------------------------
 # Visibility
 # ---------------------------------------------------------

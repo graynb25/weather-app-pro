@@ -82,13 +82,12 @@ twinkling stars, falling rain streaks, drifting snow, and slow cloud
 or mist blobs. One `QTimer` drives the scene at roughly 30 frames per
 second.
 
-### 4.7 Unit toggle (M)
+### 4.7 Unit toggle (done)
 
-A menu action to switch between imperial and metric, refreshing the current
-display immediately (models carry both F and C, so most of this is display
-state). Persist it once settings exist (phase 5). Note that `DEFAULT_UNITS`
-currently only affects the API request; the UI shows both units everywhere,
-which the toggle replaces.
+The Settings menu switches imperial and metric. The API is always queried
+imperial and the models carry both units, so the toggle is display state:
+it refreshes the hero, detail tiles, hourly strip, and forecast table
+immediately and persists through settings.py.
 
 ### 4.8 Search autocomplete (M)
 
@@ -162,7 +161,7 @@ edge cases, autocomplete debounce logic as a pure function).
 - [x] 4.4 spacing and card polish
 - [x] 4.5 typography pass
 - [x] 4.6 dynamic background gradient
-- [ ] 4.7 unit toggle
+- [x] 4.7 unit toggle
 - [ ] 4.8 search autocomplete
 - [ ] 4.9 window and system polish
 - [ ] 4.10 footer status improvements

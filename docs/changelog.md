@@ -103,8 +103,20 @@
 
 ---
 
+## v0.8
+
+- Added settings.py: persisted user settings in settings.json
+  (gitignored), with defensive IO and validated keys. Stores units,
+  condition mode, auto refresh interval, and window geometry.
+- Added the unit toggle: a Settings menu switches imperial and metric
+  across the hero, tiles, hourly strip, and forecast instantly. The API
+  always fetches imperial; the toggle is display state.
+- The condition menu choice and the auto refresh interval now persist.
+- The window position and size are restored on the next start.
+
+---
+
 ## Upcoming
 
-- Settings persistence and the unit toggle.
 - Favorites.
 - Search autocomplete.

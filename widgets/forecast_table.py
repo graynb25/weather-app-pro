@@ -67,19 +67,26 @@ class ForecastRow(QFrame):
 
         self.setLayout(row)
 
-    def update_day(self, day, accent: str, week_lo: float, week_hi: float) -> None:
+    def update_day(self, day, accent: str, week_lo: float, week_hi: float,
+        units: str = "imperial") -> None:
         """
-        Fill the row from a ForecastData model.
+        Fill the row from a ForecastData model, hi/lo in the
+        selected unit.
         """
+
+        if units == "metric":
+            day_lo, day_hi = day.temp_min_c, day.temp_max_c
+        else:
+            day_lo, day_hi = day.temp_min_f, day.temp_max_f
 
         self.day_label.setText(day.day.upper())
         self.values_label.setText(
-            f"{day.temp_max_f:.0f}\u00b0  /  {day.temp_min_f:.0f}\u00b0"
+            f"{day_hi:.0f}\u00b0  /  {day_lo:.0f}\u00b0"
         )
 
         self.range_bar.set_data(
-            day.temp_min_f,
-            day.temp_max_f,
+            day_lo,
+            day_hi,
             week_lo,
             week_hi,
             accent,
@@ -118,9 +125,11 @@ class ForecastTable(QFrame):
 
         self.setLayout(layout)
 
-    def update_forecast(self, forecast: list, accent: str) -> None:
+    def update_forecast(self, forecast: list, accent: str,
+        units: str = "imperial") -> None:
         """
-        Fill all rows from a list of ForecastData models.
+        Fill all rows from a list of ForecastData models, in the
+        selected unit.
 
         The bars scale against the week's full range so the five days
         are comparable at a glance. The list is always the same length
@@ -130,8 +139,13 @@ class ForecastTable(QFrame):
         if not forecast:
             return
 
-        week_lo = min(day.temp_min_f for day in forecast)
-        week_hi = max(day.temp_max_f for day in forecast)
+        if units == "metric":
+            low_field, high_field = "temp_min_c", "temp_max_c"
+        else:
+            low_field, high_field = "temp_min_f", "temp_max_f"
+
+        week_lo = min(getattr(day, low_field) for day in forecast)
+        week_hi = max(getattr(day, high_field) for day in forecast)
 
         for row, day in zip(self.rows, forecast):
-            row.update_day(day, accent, week_lo, week_hi)
+            row.update_day(day, accent, week_lo, week_hi, units)

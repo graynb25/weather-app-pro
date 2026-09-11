@@ -16,6 +16,8 @@ and presents them with SVG icons, Lottie animations, and QSS themes.
 - Automatic refresh of the last search every 10 minutes
 - The last successful search is saved and shown at startup or when a
   request fails
+- Imperial or metric units throughout, persisted with everything else
+  (condition mode, refresh interval, window position) in settings.json
 - Hand-written error messages that never expose technical detail
 - Glass console design: glass panels over an animated sky that follows
   the weather, with a palette per condition (clear, cloudy, rain, snow,
@@ -76,6 +78,7 @@ weather-app-pro/
 ├── logging_setup.py         Rotating file logging setup
 ├── crash_hooks.py           Crash logging and the final error dialog
 ├── cache.py                 Last successful search, saved as JSON
+├── settings.py              Persisted settings (units, geometry, interval)
 ├── config.py                App constants
 ├── utils.py                 Conversion helpers, redact_url
 │
@@ -101,7 +104,6 @@ changing the code should read it first.
 These exist as empty placeholder files already:
 
 - Saved cities (`favorites.py`, `favorites.json`)
-- Persisted settings such as units and theme (`settings.py`, `settings.json`)
 - Painter-based weather effects (`widgets/weather_animation.py`)
 - The hourly strip from the redesign plan (optional addition to the
   console design)
