@@ -29,7 +29,7 @@ from PyQt5.QtGui import QFont, QPixmap, QPainter
 from PyQt5.QtSvg import QSvgRenderer
 from PyQt5.QtWidgets import (QWidget, QMainWindow, QLabel, QPushButton,
     QLineEdit, QVBoxLayout, QGridLayout, QActionGroup, QAction,
-    QHBoxLayout, QFrame, QLayout)
+    QHBoxLayout, QFrame, QLayout, QScrollArea)
 
 from weather_api import WeatherAPI
 from weather_worker import WeatherWorker
@@ -49,7 +49,7 @@ from widgets.forecast_table import ForecastTable
 logger = logging.getLogger(f"weather.{__name__}")
 
 HERO_ICON_SIZE = 84
-FLAG_SIZE = 22
+FLAG_HEIGHT = 22
 
 
 class WeatherApp(QMainWindow):
@@ -153,6 +153,19 @@ class WeatherApp(QMainWindow):
         self.flag_label = QLabel()
         self.station_label = QLabel("STATION: --")
         self.station_label.setObjectName("stationLabel")
+
+        # The owner's local clock. Ticks every second like the city
+        # clock, in 12h format with a small LOCAL tag.
+        self.local_clock_label = QLabel("--:--")
+        self.local_clock_label.setObjectName("localClock")
+
+        self.local_tag_label = QLabel("LOCAL")
+        self.local_tag_label.setObjectName("localTag")
+
+        local_tag_font = self.local_tag_label.font()
+        local_tag_font.setLetterSpacing(QFont.AbsoluteSpacing, 1.0)
+        self.local_tag_label.setFont(local_tag_font)
+
         self.live_badge = QLabel()
         self.live_badge.setObjectName("liveBadge")
 
@@ -340,17 +353,22 @@ class WeatherApp(QMainWindow):
         self.sky = SkyWidget()
 
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(26, 22, 26, 18)
-        main_layout.setSpacing(14)
+        main_layout.setContentsMargins(30, 26, 30, 20)
+        main_layout.setSpacing(17)
 
         # Status line
         status_layout = QHBoxLayout()
-        status_layout.setContentsMargins(18, 9, 18, 9)
+        status_layout.setContentsMargins(18, 11, 18, 11)
+        status_layout.setSpacing(8)
 
         status_layout.addWidget(self.flag_label)
-        status_layout.addSpacing(8)
+        status_layout.addSpacing(6)
         status_layout.addWidget(self.station_label)
         status_layout.addStretch()
+        status_layout.addWidget(self.local_clock_label)
+        status_layout.addSpacing(4)
+        status_layout.addWidget(self.local_tag_label)
+        status_layout.addSpacing(10)
         status_layout.addWidget(self.live_badge)
 
         self.status_line.setLayout(status_layout)
@@ -367,8 +385,8 @@ class WeatherApp(QMainWindow):
 
         # Hero
         hero_layout = QHBoxLayout()
-        hero_layout.setContentsMargins(24, 18, 24, 18)
-        hero_layout.setSpacing(28)
+        hero_layout.setContentsMargins(28, 24, 28, 24)
+        hero_layout.setSpacing(32)
 
         hero_layout.addWidget(
             self.glyph_label, 0, Qt.AlignVCenter
@@ -404,7 +422,7 @@ class WeatherApp(QMainWindow):
         main_layout.addWidget(self._micro_title("Measurements"))
 
         grid = QGridLayout()
-        grid.setSpacing(10)
+        grid.setSpacing(12)
 
         tiles = [
             self.humidity_tile, self.wind_tile,
@@ -427,7 +445,8 @@ class WeatherApp(QMainWindow):
 
         # Footer
         footer_layout = QHBoxLayout()
-        footer_layout.setContentsMargins(6, 2, 6, 2)
+        footer_layout.setContentsMargins(2, 8, 2, 2)
+        footer_layout.setSpacing(10)
 
         footer_layout.addWidget(self.status_label)
         footer_layout.addStretch()
@@ -435,7 +454,26 @@ class WeatherApp(QMainWindow):
 
         main_layout.addLayout(footer_layout)
 
-        self.sky.setLayout(main_layout)
+        # The console content scrolls when the window is shorter than
+        # its comfortable height, instead of Qt crushing the flexible
+        # rows (which collapsed labels to zero height on short
+        # screens).
+        content = QWidget()
+        content.setObjectName("consoleContent")
+        content.setLayout(main_layout)
+
+        scroll = QScrollArea()
+        scroll.setObjectName("consoleScroll")
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll.setWidget(content)
+
+        sky_layout = QVBoxLayout(self.sky)
+        sky_layout.setContentsMargins(0, 0, 0, 0)
+        sky_layout.addWidget(scroll)
+
         self.setCentralWidget(self.sky)
 
     # ---------------------------------------------------------
@@ -576,12 +614,20 @@ class WeatherApp(QMainWindow):
 
     def load_flag(self, country_code: str) -> None:
         """
-        Render the country flag into the status line.
+        Render the country flag into the status line, keeping the
+        flag's own aspect ratio so it is never squashed.
         """
 
         renderer = QSvgRenderer(FlagManager.get_flag_path(country_code))
 
-        pixmap = QPixmap(FLAG_SIZE, FLAG_SIZE)
+        source = renderer.defaultSize()
+
+        if source.height() > 0:
+            width = max(1, round(FLAG_HEIGHT * source.width() / source.height()))
+        else:
+            width = FLAG_HEIGHT
+
+        pixmap = QPixmap(width, FLAG_HEIGHT)
         pixmap.fill(Qt.transparent)
 
         painter = QPainter(pixmap)
@@ -617,10 +663,12 @@ class WeatherApp(QMainWindow):
             f"H {weather.temp_max_f:.0f}\u00b0   L {weather.temp_min_f:.0f}\u00b0"
         )
 
-        self.humidity_tile.set_value(f"{weather.humidity}%")
-        self.wind_tile.set_value(f"{weather.wind_speed:.0f} mph")
-        self.visibility_tile.set_value(f"{meters_to_miles(weather.visibility):.0f} mi")
-        self.pressure_tile.set_value(f"{weather.pressure} hPa")
+        self.humidity_tile.set_value(f"{weather.humidity}", "%")
+        self.wind_tile.set_value(f"{weather.wind_speed:.0f}", "mph")
+        self.visibility_tile.set_value(
+            f"{meters_to_miles(weather.visibility):.0f}", "mi"
+        )
+        self.pressure_tile.set_value(f"{weather.pressure}", "hPa")
         self.sunrise_tile.set_value(
             unix_to_local_time(weather.sunrise, weather.timezone)
         )
@@ -630,7 +678,7 @@ class WeatherApp(QMainWindow):
         self.condition_tile.set_value(f"{weather.weather_id}")
 
         fetched = self.fetched_at or datetime.now()
-        self.updated_tile.set_value(f"{fetched:%H:%M} local")
+        self.updated_tile.set_value(f"{fetched:%I:%M %p}", "local")
 
         self._forecast_accent = accent
 
@@ -661,8 +709,12 @@ class WeatherApp(QMainWindow):
     def update_clock(self) -> None:
 
         """
-         Update the displayed local time for the selected city.
+         Update the local clock and the city clock every second.
          """
+
+        # The owner's local time. Always ticks, even before the first
+        # search, in 12h format like the city clock.
+        self.local_clock_label.setText(datetime.now().strftime("%I:%M:%S %p"))
 
         if self.weather_data is None:
             self.time_label.setText("--:--")
@@ -701,8 +753,8 @@ class WeatherApp(QMainWindow):
         """
 
         self.setWindowTitle("Weather App Pro")
-        self.setMinimumSize(900, 760)
-        self.resize(980, 830)
+        self.setMinimumSize(820, 620)
+        self.resize(1010, 860)
 
         # Defaults before the first search
         self.temperature_label.setText("--\u00b0F")
@@ -711,6 +763,7 @@ class WeatherApp(QMainWindow):
         self.feels_label.setText("FEELS LIKE --\u00b0")
         self.minmax_label.setText("H --\u00b0   L --\u00b0")
         self.live_badge.setText("\u25cf OFFLINE")
+        self.local_clock_label.setText("--:--:-- --")
         self.status_label.setText("Ready")
 
         self.time_label.setAlignment(Qt.AlignRight)

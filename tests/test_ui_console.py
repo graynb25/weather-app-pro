@@ -91,8 +91,10 @@ def test_display_weather_fills_the_console(qtbot):
     assert window.condition_text.text() == "LIGHT RAIN"
     assert "LONDON, GB" in window.station_label.text()
     assert "LIVE" in window.live_badge.text()
-    assert window.humidity_tile.value_label.text() == "72%"
+    assert window.humidity_tile.value_label.text() == "72"
+    assert window.humidity_tile.unit_label.text() == "%"
     assert window.condition_tile.value_label.text() == "500"
+    assert window.updated_tile.unit_label.text() == "local"
 
     # Rain weather resolves the sky and the window property together.
     assert window.sky.condition == "rain"

@@ -4,6 +4,11 @@
    The window background is painted by SkyWidget, so every
    widget here is either transparent or a dark glass panel.
 
+   Contrast: label colors and panel opacities are verified
+   against WCAG AA in tests/test_contrast.py, composited
+   over every gradient stop of every condition. Keep the
+   alphas in sync with that test when tuning.
+
    Accent colors are condition driven: WeatherApp carries a
    dynamic "condition" property and the attribute selectors
    at the bottom recolor the accent widgets to match.
@@ -21,12 +26,51 @@ QLabel {
 }
 
 /* =====================================================
+   Content scroll area: stays invisible over the sky
+   ===================================================== */
+
+QScrollArea#consoleScroll {
+    background: transparent;
+    border: none;
+}
+
+QScrollArea#consoleScroll > QWidget > QWidget {
+    background: transparent;
+}
+
+QScrollBar:vertical {
+    background: rgba(11, 16, 25, 120);
+    width: 10px;
+    border-radius: 5px;
+    margin: 3px;
+}
+
+QScrollBar::handle:vertical {
+    background: rgba(255, 255, 255, 60);
+    border-radius: 4px;
+    min-height: 40px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: rgba(255, 255, 255, 90);
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0;
+    width: 0;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: transparent;
+}
+
+/* =====================================================
    Menu bar
    ===================================================== */
 
 QMenuBar {
     background: transparent;
-    color: rgba(238, 242, 247, 200);
+    color: rgba(238, 242, 247, 210);
     border: none;
     padding: 2px 6px;
 }
@@ -66,12 +110,13 @@ QMenu::indicator {
 }
 
 /* =====================================================
-   Glass panels
+   Glass panels: dark enough for AA text over every
+   condition gradient (see tests/test_contrast.py)
    ===================================================== */
 
 QFrame#statusLine, QFrame#heroPanel, QFrame#statTile,
 QFrame#forecastPanel {
-    background: rgba(11, 16, 25, 122);
+    background: rgba(11, 16, 25, 170);
     border: 1px solid rgba(255, 255, 255, 38);
     border-radius: 12px;
 }
@@ -86,12 +131,28 @@ QFrame#forecastRow[today="true"] {
     background: rgba(255, 255, 255, 18);
 }
 
+/* Chips: the section titles and footer sit directly on
+   the sky, so they carry their own dark glass backing. */
+
+QLabel#sectionTitle, QLabel#footerLabel {
+    background: rgba(11, 16, 25, 180);
+    border: 1px solid rgba(255, 255, 255, 30);
+    border-radius: 8px;
+    padding: 6px 14px;
+}
+
+QLabel#sectionTitle {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(238, 242, 247, 235);
+}
+
 /* =====================================================
    Search
    ===================================================== */
 
 QLineEdit#searchInput {
-    background: rgba(11, 16, 25, 122);
+    background: rgba(11, 16, 25, 170);
     border: 1px solid rgba(255, 255, 255, 46);
     border-radius: 10px;
     padding: 12px 16px;
@@ -130,13 +191,32 @@ QPushButton#searchButton:hover {
 
 QLabel#stationLabel {
     font-size: 11px;
-    color: rgba(238, 242, 247, 185);
+    color: rgba(238, 242, 247, 210);
 }
+
+QLabel#localClock {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(238, 242, 247, 225);
+    font-family: Consolas, "Courier New", monospace;
+}
+
+QLabel#localTag {
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(238, 242, 247, 205);
+}
+
+/* Accent text lives on a darker pill so every condition
+   accent passes AA against it (see tests/test_contrast.py). */
 
 QLabel#liveBadge {
     font-size: 11px;
     font-weight: 700;
     color: #6fb3ff;
+    background: rgba(4, 8, 16, 150);
+    border-radius: 8px;
+    padding: 4px 12px;
 }
 
 /* =====================================================
@@ -152,7 +232,7 @@ QLabel#heroTemp {
 QLabel#heroAlt {
     font-size: 26px;
     font-weight: 300;
-    color: rgba(238, 242, 247, 165);
+    color: rgba(238, 242, 247, 190);
     font-family: Consolas, "Courier New", monospace;
 }
 
@@ -160,28 +240,25 @@ QLabel#conditionText {
     font-size: 16px;
     font-weight: 700;
     color: #6fb3ff;
+    background: rgba(4, 8, 16, 150);
+    border-radius: 8px;
+    padding: 4px 12px;
 }
 
 QLabel#heroMeta {
     font-size: 13px;
-    color: rgba(238, 242, 247, 175);
+    color: rgba(238, 242, 247, 205);
     font-family: Consolas, "Courier New", monospace;
 }
 
 /* =====================================================
-   Section titles and measurement tiles
+   Measurement tiles
    ===================================================== */
-
-QLabel#sectionTitle, QLabel#panelTitle {
-    font-size: 10px;
-    font-weight: 600;
-    color: rgba(238, 242, 247, 160);
-}
 
 QLabel#statTitle {
     font-size: 10px;
     font-weight: 600;
-    color: rgba(238, 242, 247, 140);
+    color: rgba(238, 242, 247, 205);
 }
 
 QLabel#statValue {
@@ -192,7 +269,7 @@ QLabel#statValue {
 
 QLabel#statUnit {
     font-size: 12px;
-    color: rgba(238, 242, 247, 150);
+    color: rgba(238, 242, 247, 205);
 }
 
 /* =====================================================
@@ -215,7 +292,7 @@ QLabel#forecastValues {
 
 QLabel#footerLabel {
     font-size: 12px;
-    color: rgba(238, 242, 247, 155);
+    color: rgba(238, 242, 247, 235);
 }
 
 /* =====================================================

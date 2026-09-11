@@ -52,7 +52,7 @@ class ForecastRow(QFrame):
         self.values_label.setObjectName("forecastValues")
 
         row = QHBoxLayout()
-        row.setContentsMargins(18, 10, 18, 10)
+        row.setContentsMargins(18, 12, 18, 12)
         row.setSpacing(16)
 
         row.addWidget(self.day_label, 0, Qt.AlignVCenter)
@@ -105,8 +105,8 @@ class ForecastTable(QFrame):
         self.rows = [ForecastRow(index) for index in range(ROW_COUNT)]
 
         layout = QVBoxLayout()
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(2)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(4)
 
         for row in self.rows:
             layout.addWidget(row)
