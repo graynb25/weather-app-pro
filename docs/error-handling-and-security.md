@@ -224,16 +224,16 @@ Replace the inline Celsius math in `weather_api.py` with
 
 ## Checklist
 
-- [ ] 1.1 errors.py hierarchy
-- [ ] 1.2 status code mapping in weather_api.py
-- [ ] 1.3 UI error path rewrite
-- [ ] 1.4 payload validation
-- [ ] 1.5 logging_setup.py and logs/ gitignore
-- [ ] 1.6 redact_url helper
-- [ ] 1.7 leak guard test
-- [ ] 1.8 input validation
-- [ ] 2.1 pytest scaffolding
-- [ ] 2.2 tests isolated from .env
+- [x] 1.1 errors.py hierarchy
+- [x] 1.2 status code mapping in weather_api.py
+- [x] 1.3 UI error path rewrite
+- [x] 1.4 payload validation
+- [x] 1.5 logging_setup.py and logs/ gitignore
+- [x] 1.6 redact_url helper
+- [x] 1.7 leak guard test
+- [x] 1.8 input validation
+- [x] 2.1 pytest scaffolding
+- [x] 2.2 tests isolated from .env
 - [ ] 3.1 background network worker
 - [ ] 3.2 retries with backoff
 - [ ] 3.3 last result cache
@@ -241,4 +241,8 @@ Replace the inline Celsius math in `weather_api.py` with
 - [ ] 3.5 first-run key check
 - [ ] 3.6 defensive favorites/settings IO (when implemented)
 - [ ] 3.7 global crash hook
-- [ ] 3.8 utils conversions used everywhere
+- [x] 3.8 utils conversions used everywhere
+
+Phase 1 and the pytest scaffolding it needs were completed in September
+2026 (see docs/changelog.md v0.4). The tests live in tests/ and run with
+`python -m pytest` after installing requirements-dev.txt.

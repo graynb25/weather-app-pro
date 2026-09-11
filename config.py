@@ -7,6 +7,8 @@ FORECAST_ENDPOINT = "/forecast"
 
 REQUEST_TIMEOUT = 10
 
+MAX_CITY_LENGTH = 85           # OpenWeatherMap's limit for the q parameter
+
 REFRESH_INTERVAL = 600000      # 10 minutes in milliseconds
 
 DEFAULT_UNITS = "imperial"     # "metric" or "imperial"

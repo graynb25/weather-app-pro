@@ -23,8 +23,11 @@ and presents them with SVG icons, Lottie animations, and QSS themes.
 - An OpenWeatherMap API key (the free tier is enough)
 - Dependencies, pinned in `requirements.txt`:
   - PyQt5 5.15.11
+  - PyQtWebEngine 5.15.7
   - requests 2.32.5
   - python-dotenv 1.2.2
+- For the test suite, pinned in `requirements-dev.txt`:
+  - pytest 9.1.1, pytest-cov 7.1.0, pytest-qt 4.5.0, requests-mock 1.12.1
 
 ## Setup
 
@@ -42,30 +45,43 @@ and presents them with SVG icons, Lottie animations, and QSS themes.
    ```bash
    python main.py
    ```
+5. Optional: install the dev dependencies and run the tests:
+   ```bash
+   pip install -r requirements-dev.txt
+   python -m pytest
+   ```
 
 To test the Lottie animation pipeline on its own: `python test_lottie.py`
+
+The app writes a rotating log to `logs/app.log` (gitignored). Set
+`WEATHER_CONSOLE_LOG=1` in `.env` to also mirror log messages in the
+console.
 
 ## Project Structure
 
 ```
 weather-app-pro/
 │
-├── main.py                  Entry point
+├── main.py                  Entry point, logging bootstrap
 ├── ui.py                    Main window, layouts, signals, display logic
-├── weather_api.py           OpenWeatherMap client
+├── weather_api.py           OpenWeatherMap client, validation, error mapping
 ├── weather_model.py         WeatherData and ForecastData dataclasses
+├── errors.py                Exception hierarchy with safe user messages
+├── logging_setup.py         Rotating file logging setup
 ├── config.py                App constants
-├── utils.py                 Conversion helpers
+├── utils.py                 Conversion helpers, redact_url
 ├── forecast_card.py         One forecast day card
 │
 ├── managers/                IconManager, AnimationManager, FlagManager, ThemeManager
 ├── widgets/                 DetailCard, forecast widget, LottieWidget
 ├── resources/               Icons, Lottie animations, QSS themes, lottie player
+├── tests/                   pytest suites (status mapping, leak guard, validation)
 ├── docs/                    Improvement plans (error handling, security, testing, redesign)
 ├── old/                     Legacy code, reference only
 ├── test_lottie.py           Manual animation test harness
 ├── .env.example             Template for the required environment variables
-└── requirements.txt         Pinned dependencies
+├── requirements.txt         Pinned runtime dependencies
+└── requirements-dev.txt     Pinned test dependencies
 ```
 
 `agent.md` holds the working rules for this project. Anyone (human or AI)
@@ -78,7 +94,8 @@ These exist as empty placeholder files already:
 - Saved cities (`favorites.py`, `favorites.json`)
 - Persisted settings such as units and theme (`settings.py`, `settings.json`)
 - Painter-based weather effects (`widgets/weather_animation.py`)
-- An automated pytest suite (plan in `docs/testing-plan.md`)
+- The remaining pytest suites from `docs/testing-plan.md` (the API, redaction,
+  and logging suites are in `tests/` already)
 - Condition-based themes: `sunny`, `cloudy`, `rainy`, and `snowy` stylesheets
   exist but the menu currently offers only light and dark
 

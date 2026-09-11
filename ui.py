@@ -10,18 +10,22 @@ Responsibilities
 - Respond to button clicks
 - Display weather information
 - Update the live clock
+- Show errors through hand-written, safe messages
 
 This file does NOT communicate directly with the
 OpenWeatherMap API. All API requests go through
 weather_api.py.
 """
 
+import logging
 
 from PyQt5.QtWidgets import (QWidget, QMainWindow, QLabel, QPushButton,
     QLineEdit, QVBoxLayout, QGridLayout, QActionGroup,
     QHBoxLayout, QFrame, QLayout, QGraphicsDropShadowEffect, QMenuBar, QAction)
 
 from weather_api import WeatherAPI
+from errors import WeatherAppError
+from utils import meters_to_miles, unix_to_local_time
 from datetime import datetime, timedelta, timezone
 from PyQt5.QtGui import QPixmap, QPainter, QColor
 from PyQt5.QtSvg import QSvgRenderer
@@ -34,6 +38,8 @@ from weather_model import WeatherData, ForecastData
 from widgets.lottie_widget import LottieWidget
 from managers.animation_manager import AnimationManager
 from widgets.detail_card import DetailCard
+
+logger = logging.getLogger(f"weather.{__name__}")
 
 
 
@@ -585,8 +591,20 @@ class WeatherApp(QMainWindow):
             self.display_weather(weather)
             self.display_forecast(forecast)
 
-        except Exception as error:
-            self.display_error(str(error))
+        except WeatherAppError as error:
+            # user_message is hand-written in errors.py, so nothing from
+            # the API, the URL, or the exception can reach the screen.
+            logger.warning("Search for '%s' failed: %s",
+                city, error.debug_detail or error.user_message)
+
+            self.display_error(error.user_message)
+
+        except Exception:
+            # Unknown territory. Keep the trace in the log, show the
+            # user nothing technical.
+            logger.exception("Unexpected failure during the search for '%s'.", city)
+
+            self.display_error("Something went wrong. See the log for details.")
 
     def change_theme(self, theme_name: str) -> None:
         """
@@ -655,7 +673,7 @@ class WeatherApp(QMainWindow):
         )
 
         self.visibility_card.set_value(
-            f"{weather.visibility / 1609.34:.1f} mi"
+            f"{meters_to_miles(weather.visibility):.1f} mi"
         )
 
         self.pressure_card.set_value(
@@ -666,26 +684,12 @@ class WeatherApp(QMainWindow):
         # Sunrise / Sunset
         # =====================================================
 
-        sunrise_time = datetime.fromtimestamp(
-            weather.sunrise,
-            timezone(
-                timedelta(seconds=weather.timezone)
-            )
-        )
-
-        sunset_time = datetime.fromtimestamp(
-            weather.sunset,
-            timezone(
-                timedelta(seconds=weather.timezone)
-            )
-        )
-
         self.sunrise_card.set_value(
-            sunrise_time.strftime("%I:%M %p")
+            unix_to_local_time(weather.sunrise, weather.timezone)
         )
 
         self.sunset_card.set_value(
-            sunset_time.strftime("%I:%M %p")
+            unix_to_local_time(weather.sunset, weather.timezone)
         )
 
         # =====================================================

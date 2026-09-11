@@ -22,3 +22,6 @@ agent.md
 
 # Private chat transcripts (local only)
 docs/private/
+
+# Application logs
+logs/

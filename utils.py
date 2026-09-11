@@ -8,7 +8,23 @@ Keeping conversions here prevents duplicate code
 and makes future updates much easier.
 """
 
+import re
 from datetime import datetime, timedelta, timezone
+
+
+# ---------------------------------------------------------
+# Secrets
+# ---------------------------------------------------------
+
+def redact_url(url: str) -> str:
+    """
+    Replace the appid query parameter value with ***.
+
+    Anything derived from a request URL goes through this before it can
+    reach a log file or an error message, so the API key never leaks.
+    """
+
+    return re.sub(r"([?&]appid=)[^&]*", r"\1***", url)
 
 
 # ---------------------------------------------------------
