@@ -19,3 +19,6 @@ env/
 
 # Agent instructions (local only)
 agent.md
+
+# Private chat transcripts (local only)
+docs/private/
