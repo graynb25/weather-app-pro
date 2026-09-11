@@ -49,7 +49,7 @@ Detail lives in docs/error-handling-and-security.md.
 
 - [x] Favorite Cities
 - [ ] Recent Searches
-- [ ] Hourly Forecast
+- [x] Hourly Forecast
 - [ ] Air Quality
 - [ ] UV Index
 - [ ] Moon Phase
@@ -59,8 +59,10 @@ Detail lives in docs/error-handling-and-security.md.
 
 ## Release
 
+Detail lives in docs/release-plan.md (phase 6).
+
 - [ ] Installer
 - [ ] EXE
-- [ ] App icon
+- [ ] App icon file for the binary (window icon shipped in v0.11)
 - [ ] About dialog
 - [ ] Documentation

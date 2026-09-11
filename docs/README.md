@@ -23,6 +23,7 @@ items from later phases can jump the queue if they are small and useful.
 | 3 | Responsiveness and robustness (threads, retries, caching) | error-handling-and-security.md |
 | 4 | UI modernization (themes, hero layout, hourly strip) | redesign-modernization.md |
 | 5 | Planned features (favorites, settings, weather animations) | redesign-modernization.md |
+| 6 | Release: frozen-app plumbing, EXE, installer, About, ship | release-plan.md |
 
 Phases 1 and 2 overlap by design: the leak guard tests in phase 1 need the
 test setup from phase 2. It is fine to build the test scaffolding first.
@@ -45,6 +46,11 @@ item tracking into one place if keeping two in sync gets old.
 - [redesign-modernization.md](redesign-modernization.md)
   What mainstream weather apps do, what to adopt here, and the phase 4 and 5
   items including favorites, settings, and painter-based animations.
+- [release-plan.md](release-plan.md)
+  The phase 6 release sprint: frozen-app plumbing (data directory,
+  bundled resources), the build pipeline and secret scan, the Inno
+  Setup installer and portable zip, the About dialog and first-run key
+  setup, and verification. Items tagged S/H/M/L.
 
 ### Project reference (owner's docs)
 
