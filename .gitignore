@@ -47,3 +47,7 @@ release/
 
 # Generated installer info page
 installer/install-info.txt
+
+# Coverage outputs
+.coverage
+coverage_report.txt
