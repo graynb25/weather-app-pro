@@ -171,14 +171,15 @@ hours to activate, which our 401 message already mentions).
 
 ## Phase 4: Verify and ship
 
-- [ ] 4.1 (H) Full pytest suite green plus a coverage report captured
-  for the release notes.
+- [x] 4.1 (H) Full pytest suite green (152 tests) plus the coverage
+  report captured at release/coverage-report-v1.0.0.txt (87% total).
 - [ ] 4.2 (H) Clean-machine manual pass (fresh Windows user or VM):
   install, first run, key setup, search, all six condition themes,
   favorites, unit toggle, auto refresh, offline cache behavior,
   uninstall. Follow `release_checklist.md`.
-- [ ] 4.3 (M) `release_checklist.md` executed and filed with the
-  release (it was refreshed alongside this plan).
+- [x] 4.3 (M) The automatable checklist items executed and filed at
+  release/PRE-RELEASE-CHECKS-v1.0.0.txt (the UI and behavior rows are
+  the interactive pass in 4.2).
 - [ ] 4.4 (M) GitHub release: tag `v1.0.0`, installer and portable zip
   attached, SHA-256 checksums in the notes. The repo is private, so
   the release is too.
