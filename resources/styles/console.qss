@@ -1,0 +1,285 @@
+/* =====================================================
+   Console Glass theme: the glass console redesign.
+
+   The window background is painted by SkyWidget, so every
+   widget here is either transparent or a dark glass panel.
+
+   Accent colors are condition driven: WeatherApp carries a
+   dynamic "condition" property and the attribute selectors
+   at the bottom recolor the accent widgets to match.
+   ===================================================== */
+
+QWidget {
+    background: transparent;
+    font-family: "Segoe UI";
+    font-size: 14px;
+    color: #eef2f7;
+}
+
+QLabel {
+    background: transparent;
+}
+
+/* =====================================================
+   Menu bar
+   ===================================================== */
+
+QMenuBar {
+    background: transparent;
+    color: rgba(238, 242, 247, 200);
+    border: none;
+    padding: 2px 6px;
+}
+
+QMenuBar::item {
+    background: transparent;
+    border-radius: 6px;
+    padding: 4px 12px;
+}
+
+QMenuBar::item:selected {
+    background: rgba(255, 255, 255, 34);
+}
+
+QMenu {
+    background: rgba(13, 18, 28, 244);
+    color: #eef2f7;
+    border: 1px solid rgba(255, 255, 255, 46);
+    border-radius: 8px;
+    padding: 6px;
+}
+
+QMenu::item {
+    background: transparent;
+    border-radius: 6px;
+    padding: 6px 26px 6px 16px;
+}
+
+QMenu::item:selected {
+    background: rgba(255, 255, 255, 36);
+}
+
+QMenu::indicator {
+    width: 12px;
+    height: 12px;
+    margin-left: 8px;
+}
+
+/* =====================================================
+   Glass panels
+   ===================================================== */
+
+QFrame#statusLine, QFrame#heroPanel, QFrame#statTile,
+QFrame#forecastPanel {
+    background: rgba(11, 16, 25, 122);
+    border: 1px solid rgba(255, 255, 255, 38);
+    border-radius: 12px;
+}
+
+QFrame#forecastRow {
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+}
+
+QFrame#forecastRow[today="true"] {
+    background: rgba(255, 255, 255, 18);
+}
+
+/* =====================================================
+   Search
+   ===================================================== */
+
+QLineEdit#searchInput {
+    background: rgba(11, 16, 25, 122);
+    border: 1px solid rgba(255, 255, 255, 46);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-family: Consolas, "Courier New", monospace;
+    color: #eef2f7;
+    selection-background-color: rgba(255, 255, 255, 60);
+}
+
+QLineEdit#searchInput:focus {
+    border: 1px solid #6fb3ff;
+}
+
+QPushButton#searchButton {
+    background: #6fb3ff;
+    color: #10151d;
+    font-size: 13px;
+    font-weight: 800;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 26px;
+}
+
+QPushButton#searchButton:disabled {
+    background: rgba(255, 255, 255, 60);
+    color: rgba(16, 21, 29, 140);
+}
+
+QPushButton#searchButton:hover {
+    background: #86c0ff;
+}
+
+/* =====================================================
+   Status line
+   ===================================================== */
+
+QLabel#stationLabel {
+    font-size: 11px;
+    color: rgba(238, 242, 247, 185);
+}
+
+QLabel#liveBadge {
+    font-size: 11px;
+    font-weight: 700;
+    color: #6fb3ff;
+}
+
+/* =====================================================
+   Hero
+   ===================================================== */
+
+QLabel#heroTemp {
+    font-size: 72px;
+    font-weight: 300;
+    font-family: Consolas, "Courier New", monospace;
+}
+
+QLabel#heroAlt {
+    font-size: 26px;
+    font-weight: 300;
+    color: rgba(238, 242, 247, 165);
+    font-family: Consolas, "Courier New", monospace;
+}
+
+QLabel#conditionText {
+    font-size: 16px;
+    font-weight: 700;
+    color: #6fb3ff;
+}
+
+QLabel#heroMeta {
+    font-size: 13px;
+    color: rgba(238, 242, 247, 175);
+    font-family: Consolas, "Courier New", monospace;
+}
+
+/* =====================================================
+   Section titles and measurement tiles
+   ===================================================== */
+
+QLabel#sectionTitle, QLabel#panelTitle {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(238, 242, 247, 160);
+}
+
+QLabel#statTitle {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(238, 242, 247, 140);
+}
+
+QLabel#statValue {
+    font-size: 22px;
+    font-weight: 500;
+    font-family: Consolas, "Courier New", monospace;
+}
+
+QLabel#statUnit {
+    font-size: 12px;
+    color: rgba(238, 242, 247, 150);
+}
+
+/* =====================================================
+   Forecast table
+   ===================================================== */
+
+QLabel#forecastDay {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+QLabel#forecastValues {
+    font-size: 15px;
+    font-family: Consolas, "Courier New", monospace;
+}
+
+/* =====================================================
+   Footer
+   ===================================================== */
+
+QLabel#footerLabel {
+    font-size: 12px;
+    color: rgba(238, 242, 247, 155);
+}
+
+/* =====================================================
+   Condition accents: WeatherApp carries a dynamic
+   "condition" property; these rules keep the search
+   button, live badge, and condition text on palette.
+   ===================================================== */
+
+WeatherApp[condition="clear"] QPushButton#searchButton,
+WeatherApp[condition="clear"] QPushButton#searchButton:hover {
+    background: #ffb454;
+    color: #10151d;
+}
+WeatherApp[condition="clear"] QLabel#liveBadge,
+WeatherApp[condition="clear"] QLabel#conditionText {
+    color: #ffb454;
+}
+
+WeatherApp[condition="cloudy"] QPushButton#searchButton,
+WeatherApp[condition="cloudy"] QPushButton#searchButton:hover {
+    background: #9db8d9;
+    color: #10151d;
+}
+WeatherApp[condition="cloudy"] QLabel#liveBadge,
+WeatherApp[condition="cloudy"] QLabel#conditionText {
+    color: #9db8d9;
+}
+
+WeatherApp[condition="rain"] QPushButton#searchButton,
+WeatherApp[condition="rain"] QPushButton#searchButton:hover {
+    background: #6fb3ff;
+    color: #10151d;
+}
+WeatherApp[condition="rain"] QLabel#liveBadge,
+WeatherApp[condition="rain"] QLabel#conditionText {
+    color: #6fb3ff;
+}
+
+WeatherApp[condition="snow"] QPushButton#searchButton,
+WeatherApp[condition="snow"] QPushButton#searchButton:hover {
+    background: #9fd8ff;
+    color: #10151d;
+}
+WeatherApp[condition="snow"] QLabel#liveBadge,
+WeatherApp[condition="snow"] QLabel#conditionText {
+    color: #9fd8ff;
+}
+
+WeatherApp[condition="mist"] QPushButton#searchButton,
+WeatherApp[condition="mist"] QPushButton#searchButton:hover {
+    background: #b8c4cc;
+    color: #10151d;
+}
+WeatherApp[condition="mist"] QLabel#liveBadge,
+WeatherApp[condition="mist"] QLabel#conditionText {
+    color: #b8c4cc;
+}
+
+WeatherApp[condition="night"] QPushButton#searchButton,
+WeatherApp[condition="night"] QPushButton#searchButton:hover {
+    background: #b48cff;
+    color: #10151d;
+}
+WeatherApp[condition="night"] QLabel#liveBadge,
+WeatherApp[condition="night"] QLabel#conditionText {
+    color: #b48cff;
+}

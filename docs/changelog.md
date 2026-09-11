@@ -65,7 +65,32 @@
 
 ---
 
+## v0.6
+
+- Redesigned the app as the "glass console": the data console layout on
+  glass panels over an animated condition sky, per the reviewed preview
+  (instance/preview/05-glass-console.html, local only).
+- Added managers/condition_theme.py: six condition palettes (clear,
+  cloudy, rain, snow, mist, night) chosen from the weather id plus day
+  or night. The Condition menu follows the weather on Auto or pins any
+  condition.
+- Added widgets/sky_widget.py: the painted full-window gradient and the
+  ambient scene per condition (drifting sun or moon, twinkling stars,
+  falling rain, drifting snow, cloud and mist blobs).
+- Added widgets/range_bar.py and widgets/forecast_table.py: the 5-day
+  forecast is now a table with hi/lo temperature range bars scaled
+  against the week range. ForecastData grew real daily min and max,
+  aggregated from the API's 3-hourly entries.
+- Added widgets/stat_tile.py: the measurement tiles (humidity, wind,
+  visibility, pressure, sunrise, sunset, condition, updated).
+- Replaced the light and dark theme menu with condition theming
+  (resources/styles/console.qss). The old theme sheets stay on disk
+  unused, and Lottie is no longer embedded in the main window
+  (test_lottie.py still uses it).
+
+---
+
 ## Upcoming
 
-- UI redesign.
+- Hourly strip (optional addition to the console design).
 - Refactor ui.py.

@@ -91,7 +91,7 @@ class ForecastData:
     date: str   # "2026-07-27"
 
     # -------------------------------------------------
-    # Temperature
+    # Temperature (the entry closest to midday)
     # -------------------------------------------------
 
     temperature_f: float
@@ -103,5 +103,14 @@ class ForecastData:
 
     description: str
     weather_id: int
+
+    # -------------------------------------------------
+    # Day range (min and max across the day's entries)
+    # -------------------------------------------------
+
+    temp_min_f: float = 0.0
+    temp_min_c: float = 0.0
+    temp_max_f: float = 0.0
+    temp_max_c: float = 0.0
 
 

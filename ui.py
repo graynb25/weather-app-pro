@@ -2,7 +2,7 @@
 ui.py
 ======
 
-Main user interface for Weather App Pro.
+Main user interface for Weather App Pro: the glass console design.
 
 Responsibilities
 ----------------
@@ -13,39 +13,43 @@ Responsibilities
 - Show errors through hand-written, safe messages
 - Run searches on a background worker thread
 - Auto refresh the last search on an interval
+- Drive the condition themed sky and accent colors
 
 This file does NOT communicate directly with the
 OpenWeatherMap API. All API requests go through
 weather_worker.py on its own thread.
+
+Design source: instance/preview/05-glass-console.html (local preview).
 """
 
 import logging
 
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
+from PyQt5.QtGui import QFont, QPixmap, QPainter
+from PyQt5.QtSvg import QSvgRenderer
 from PyQt5.QtWidgets import (QWidget, QMainWindow, QLabel, QPushButton,
-    QLineEdit, QVBoxLayout, QGridLayout, QActionGroup,
-    QHBoxLayout, QFrame, QLayout, QGraphicsDropShadowEffect, QMenuBar, QAction)
+    QLineEdit, QVBoxLayout, QGridLayout, QActionGroup, QAction,
+    QHBoxLayout, QFrame, QLayout)
 
 from weather_api import WeatherAPI
 from weather_worker import WeatherWorker
 from cache import WeatherCache
 from config import REFRESH_INTERVAL
 from errors import WeatherAppError
-from utils import meters_to_miles, unix_to_local_time
-from datetime import datetime, timedelta, timezone
-from PyQt5.QtGui import QPixmap, QPainter, QColor
-from PyQt5.QtSvg import QSvgRenderer
-from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
+from managers.condition_theme import ConditionTheme
 from managers.icon_manager import IconManager
 from managers.flag_manager import FlagManager
 from managers.theme_manager import ThemeManager
-from forecast_card import ForecastCard
-from weather_model import WeatherData, ForecastData
-from widgets.lottie_widget import LottieWidget
-from managers.animation_manager import AnimationManager
-from widgets.detail_card import DetailCard
+from utils import meters_to_miles, unix_to_local_time
+from datetime import datetime, timedelta, timezone
+from widgets.sky_widget import SkyWidget
+from widgets.stat_tile import StatTile
+from widgets.forecast_table import ForecastTable
 
 logger = logging.getLogger(f"weather.{__name__}")
 
+HERO_ICON_SIZE = 84
+FLAG_SIZE = 22
 
 
 class WeatherApp(QMainWindow):
@@ -75,14 +79,21 @@ class WeatherApp(QMainWindow):
         # Repeats the last search on a fixed interval
         self.refresh_timer = QTimer()
 
-        # Current application theme
-        self.current_theme = "light"
+        # Condition mode: "auto" follows the weather, anything else is
+        # a manual condition key chosen in the menu
+        self.condition_mode = "auto"
+        self.current_condition = ConditionTheme.DEFAULT_CONDITION
 
         # Last successful search, kept on disk for offline starts
         self.weather_cache = WeatherCache()
 
         # True when the in-flight request came from the auto refresher
         self._search_is_auto = False
+
+        # Accent color of the active condition, fed to the forecast
+        # table's range bars when a forecast arrives
+        self._forecast_accent = None
+        self._last_forecast = None
 
         # Background search: the worker lives on its own thread so the
         # window never freezes while a request is in flight
@@ -118,44 +129,9 @@ class WeatherApp(QMainWindow):
 
         self.timer.start(1000)
 
-    def load_weather_icon(self, weather_id: int) -> None:
-        """
-        Load and display the correct weather icon.
-        """
-
-        icon_path = IconManager.get_icon_path(weather_id)
-
-        renderer = QSvgRenderer(icon_path)
-
-        pixmap = QPixmap(140, 140)
-        pixmap.fill(Qt.transparent)
-
-        painter = QPainter(pixmap)
-        renderer.render(painter)
-        painter.end()
-
-        self.icon_label.setPixmap(pixmap)
-        self.icon_label.setAlignment(Qt.AlignCenter)
-
-
-    def load_flag(self, country_code: str) -> None:
-        """
-        Load and display a country flag.
-        """
-
-        flag_path = FlagManager.get_flag_path(country_code)
-
-        renderer = QSvgRenderer(flag_path)
-
-        pixmap = QPixmap(36, 36)
-        pixmap.fill(Qt.transparent)
-
-        painter = QPainter(pixmap)
-        renderer.render(painter)
-        painter.end()
-
-        self.flag_label.setPixmap(pixmap)
-
+    # ---------------------------------------------------------
+    # Widgets
+    # ---------------------------------------------------------
 
     def create_widgets(self):
         """
@@ -168,419 +144,308 @@ class WeatherApp(QMainWindow):
         """
 
         # -----------------------------
+        # Status line
+        # -----------------------------
+
+        self.status_line = QFrame()
+        self.status_line.setObjectName("statusLine")
+
+        self.flag_label = QLabel()
+        self.station_label = QLabel("STATION: --")
+        self.station_label.setObjectName("stationLabel")
+        self.live_badge = QLabel()
+        self.live_badge.setObjectName("liveBadge")
+
+        # -----------------------------
         # Search
         # -----------------------------
 
-        self.flag_label = QLabel()
-        self.city_label = QLabel("Enter City")
         self.city_input = QLineEdit()
-        self.search_button = QPushButton("Get Weather")
+        self.city_input.setObjectName("searchInput")
+        self.city_input.setPlaceholderText("City name, 85 characters max")
+
+        self.search_button = QPushButton("GET WEATHER")
+        self.search_button.setObjectName("searchButton")
 
         # -----------------------------
-        # Main Weather
+        # Hero
         # -----------------------------
+
+        self.glyph_label = QLabel()
 
         self.temperature_label = QLabel()
+        self.temperature_label.setObjectName("heroTemp")
+
         self.celsius_label = QLabel()
-        self.hero_animation = LottieWidget()
-        self.hero_animation.setFixedSize(260, 260)
-        self.description_label = QLabel()
+        self.celsius_label.setObjectName("heroAlt")
+
+        self.condition_text = QLabel()
+        self.condition_text.setObjectName("conditionText")
+
+        self.feels_label = QLabel()
+        self.feels_label.setObjectName("heroMeta")
+
         self.minmax_label = QLabel()
+        self.minmax_label.setObjectName("heroMeta")
 
         # -----------------------------
-        # Weather Details
+        # Measurement tiles
         # -----------------------------
 
-        self.feels_like_card = DetailCard()
-        self.humidity_card = DetailCard()
-        self.wind_card = DetailCard()
-        self.visibility_card = DetailCard()
-        self.pressure_card = DetailCard()
-        self.sunrise_card = DetailCard()
-        self.sunset_card = DetailCard()
-
-        # -------------------------------------------------
-        # Configure Detail Cards
-        # -------------------------------------------------
-
-        self.feels_like_card.set_title("Feels Like")
-        self.feels_like_card.set_icon("feels_like")
-        self.humidity_card.set_title("Humidity")
-        self.humidity_card.set_icon("humidity")
-        self.wind_card.set_title("Wind")
-        self.wind_card.set_icon("wind")
-        self.visibility_card.set_title("Visibility")
-        self.visibility_card.set_icon("visibility")
-        self.pressure_card.set_title("Pressure")
-        self.pressure_card.set_icon("pressure")
-        self.sunrise_card.set_title("Sunrise")
-        self.sunrise_card.set_icon("sunrise")
-        self.sunset_card.set_title("Sunset")
-        self.sunset_card.set_icon("sunset")
+        self.humidity_tile = StatTile("Humidity")
+        self.wind_tile = StatTile("Wind")
+        self.visibility_tile = StatTile("Visibility")
+        self.pressure_tile = StatTile("Pressure")
+        self.sunrise_tile = StatTile("Sunrise")
+        self.sunset_tile = StatTile("Sunset")
+        self.condition_tile = StatTile("Condition")
+        self.updated_tile = StatTile("Updated")
 
         # -----------------------------
-        # Forecast Cards
+        # Forecast table
         # -----------------------------
 
-        self.forecast_cards = []
-        self.forecast_title = QLabel("5-Day Forecast")
-
-
-        for _ in range(5):
-            self.forecast_cards.append(
-                ForecastCard()
-            )
+        self.forecast_table = ForecastTable()
 
         # -----------------------------
         # Footer
         # -----------------------------
 
-        self.time_label = QLabel()
         self.status_label = QLabel()
+        self.status_label.setObjectName("footerLabel")
 
-        self.city_label.setObjectName("city_label")
-        self.city_input.setObjectName("city_input")
-        self.search_button.setObjectName("search_button")
+        self.time_label = QLabel()
+        self.time_label.setObjectName("footerLabel")
 
-        self.temperature_label.setObjectName("temperature_label")
-        self.celsius_label.setObjectName("celsius_label")
-        self.hero_animation.setObjectName("hero_animation")
-        self.description_label.setObjectName("description_label")
-        self.minmax_label.setObjectName("minmax_label")
+    def _micro_title(self, text: str) -> QLabel:
+        """
+        Create a spaced uppercase section title.
+        """
 
-        self.forecast_title.setObjectName("forecast_title")
+        label = QLabel(text.upper())
+        label.setObjectName("sectionTitle")
 
-        self.status_label.setObjectName("status_label")
-        self.time_label.setObjectName("time_label")
+        font = label.font()
+        font.setLetterSpacing(QFont.AbsoluteSpacing, 1.4)
+        label.setFont(font)
+
+        return label
+
+    # ---------------------------------------------------------
+    # Menu
+    # ---------------------------------------------------------
 
     def create_menu(self) -> None:
         """
-        Create the application's menu bar.
+        Create the condition menu.
+
+        Auto follows the searched weather; the other choices pin one
+        condition so its sky and accent can be previewed any time.
         """
 
         menu_bar = self.menuBar()
 
-        # -----------------------------------------------------
-        # Theme Menu
-        # -----------------------------------------------------
+        condition_menu = menu_bar.addMenu("Condition")
 
-        theme_menu = menu_bar.addMenu("Theme")
+        self.condition_group = QActionGroup(self)
 
-        # Create the action group (only one theme can be selected)
-        self.theme_group = QActionGroup(self)
+        self.condition_actions = {}
 
-        # Create actions
-        self.light_theme_action = QAction("Light", self)
-        self.dark_theme_action = QAction("Dark", self)
+        for key in ("auto", "clear", "cloudy", "rain", "snow", "mist", "night"):
+            action = QAction(key.capitalize(), self)
+            action.setCheckable(True)
 
-        # Make them checkable
-        self.light_theme_action.setCheckable(True)
-        self.dark_theme_action.setCheckable(True)
+            self.condition_group.addAction(action)
+            condition_menu.addAction(action)
 
-        # Add them to the group
-        self.theme_group.addAction(self.light_theme_action)
-        self.theme_group.addAction(self.dark_theme_action)
+            action.triggered.connect(
+                lambda checked, chosen=key: self.set_condition_mode(chosen)
+            )
 
-        # Set the default theme
-        self.light_theme_action.setChecked(True)
+            self.condition_actions[key] = action
 
-        # Add to the menu
-        theme_menu.addAction(self.light_theme_action)
-        theme_menu.addAction(self.dark_theme_action)
+        self.condition_actions["auto"].setChecked(True)
 
-        # Connect actions
-        self.light_theme_action.triggered.connect(
-            lambda: self.change_theme("light")
-        )
+    def set_condition_mode(self, mode: str) -> None:
+        """
+        Apply a condition mode: "auto" or a pinned condition key.
 
-        self.dark_theme_action.triggered.connect(
-            lambda: self.change_theme("dark")
-        )
+        With no weather on screen yet, a pinned choice applies right
+        away so the menu always gives visible feedback; "auto" simply
+        waits for the first search.
+        """
 
+        self.condition_mode = mode
+
+        if self.weather_data is not None:
+            self.apply_condition(self.resolve_condition(self.weather_data))
+        elif mode != "auto":
+            self.apply_condition(mode)
+
+    def resolve_condition(self, weather) -> str:
+        """
+        Work out the active condition for a weather result.
+        """
+
+        if self.condition_mode != "auto":
+            return self.condition_mode
+
+        now = datetime.now(timezone.utc).timestamp()
+        is_day = weather.sunrise <= now <= weather.sunset
+
+        return ConditionTheme.from_weather(weather.weather_id, is_day)
+
+    def apply_condition(self, condition: str) -> None:
+        """
+        Paint the sky and recolor the accent widgets for a condition.
+
+        The condition reaches QSS as a dynamic property on the window;
+        repolishing makes the attribute selectors re-evaluate.
+        """
+
+        self.current_condition = condition
+
+        self.sky.set_condition(condition)
+
+        self.setProperty("condition", condition)
+
+        style = self.style()
+        for widget in self.sky.findChildren(QWidget):
+            style.unpolish(widget)
+            style.polish(widget)
+
+        style.unpolish(self)
+        style.polish(self)
+
+        # Keep the range bars on the active accent, even when the
+        # condition was pinned from the menu after a search.
+        self._forecast_accent = ConditionTheme.accent(condition)
+
+        if self._last_forecast is not None:
+            self.forecast_table.update_forecast(
+                self._last_forecast, self._forecast_accent
+            )
+
+    # ---------------------------------------------------------
+    # Layout
+    # ---------------------------------------------------------
 
     def create_layout(self) -> None:
         """
         Create and organize the application's layouts.
         """
 
-        # =====================================================
-        # Main Vertical Layout
-        # =====================================================
+        # The sky is the central widget: it paints the background and
+        # hosts every panel.
+        self.sky = SkyWidget()
 
         main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(26, 22, 26, 18)
+        main_layout.setSpacing(14)
 
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(24)
+        # Status line
+        status_layout = QHBoxLayout()
+        status_layout.setContentsMargins(18, 9, 18, 9)
 
-        # Header
-        main_layout.addLayout(
-            self.create_header_layout()
-        )
+        status_layout.addWidget(self.flag_label)
+        status_layout.addSpacing(8)
+        status_layout.addWidget(self.station_label)
+        status_layout.addStretch()
+        status_layout.addWidget(self.live_badge)
 
-        # Current search
-        main_layout.addLayout(
-            self.create_search_layout()
-        )
+        self.status_line.setLayout(status_layout)
+        main_layout.addWidget(self.status_line)
 
-        # Current weather
-        hero_panel = self.create_panel(
-            self.create_hero_layout(),
-            "heroPanel"
-        )
+        # Search
+        search_layout = QHBoxLayout()
+        search_layout.setSpacing(10)
 
-        hero_panel.setMaximumHeight(320)
-        main_layout.addWidget(hero_panel)
-        self.apply_shadow(hero_panel)
+        search_layout.addWidget(self.city_input, 1)
+        search_layout.addWidget(self.search_button)
 
+        main_layout.addLayout(search_layout)
 
-        # =====================================================
-        # Weather Details Grid
-        # =====================================================
-
-        details_panel = self.create_panel(
-            self.create_details_layout(),
-            "detailsPanel"
-        )
-
-        details_panel.setMaximumHeight(360)
-        main_layout.addWidget(details_panel)
-        self.apply_shadow(details_panel)
-
-        # =====================================================
-        # Forecast Layout
-        # =====================================================
-
-        forecast_panel = self.create_panel(
-            self.create_forecast_layout(),
-            "forecastPanel"
-        )
-
-        forecast_panel.setMaximumHeight(320)
-        main_layout.addWidget(forecast_panel)
-        self.apply_shadow(forecast_panel)
-
-        # =====================================================
-        # Footer Layout
-        # =====================================================
-
-        main_layout.addLayout(
-            self.create_footer_layout()
-        )
-
-        # =====================================================
-        # Set Main Layout
-        # =====================================================
-
-        central_widget = QWidget()
-        central_widget.setLayout(main_layout)
-        self.setCentralWidget(central_widget)
-
-    def create_panel(self, layout: QLayout, object_name: str) -> QFrame:
-        """
-        Create a reusable panel that wraps a layout
-        inside a QFrame.
-        """
-
-        frame = QFrame()
-        frame.setObjectName(object_name)
-        frame.setLayout(layout)
-
-        return frame
-
-    def apply_shadow(self, widget) -> None:
-        """
-        Apply a subtle drop shadow to a widget.
-        """
-
-        shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(20)
-        shadow.setOffset(0, 3)
-        shadow.setColor(QColor(0, 0, 0, 40))
-        widget.setGraphicsEffect(shadow)
-
-
-    def create_header_layout(self) -> QHBoxLayout:
-        """
-        Create the header containing the country flag
-        and city name.
-        """
-
-        # =====================================================
-        # Header Layout (Flag + City Name)
-        # =====================================================
-
-        # =====================================================
-        # Search Section
-        # =====================================================
-
-        layout = QHBoxLayout()
-
-        layout.addStretch()
-
-        layout.addWidget(
-            self.flag_label,
-            alignment=Qt.AlignVCenter
-        )
-
-        layout.addSpacing(8)
-
-        layout.addWidget(
-            self.city_label,
-            alignment=Qt.AlignVCenter
-        )
-
-        layout.addStretch()
-
-        return layout
-
-    def create_search_layout(self) -> QHBoxLayout:
-        """
-        Create the search section.
-        """
-
-        layout = QHBoxLayout()
-
-        layout.addWidget(self.city_input)
-        layout.addWidget(self.search_button)
-
-        return layout
-
-    def create_hero_layout(self) -> QVBoxLayout:
-        """
-        Create the main weather display.
-        """
-
-        # =====================================================
-        # Main Hero Layout
-        # =====================================================
-
+        # Hero
         hero_layout = QHBoxLayout()
+        hero_layout.setContentsMargins(24, 18, 24, 18)
+        hero_layout.setSpacing(28)
 
-        hero_layout.setContentsMargins(20, 20, 20, 20)
-        hero_layout.setSpacing(30)
-
-        # =====================================================
-        # Left Column (Animation)
-        # =====================================================
-
-        animation_layout = QVBoxLayout()
-
-        animation_layout.addStretch()
-
-        animation_layout.addWidget(
-            self.hero_animation,
-            alignment=Qt.AlignCenter
+        hero_layout.addWidget(
+            self.glyph_label, 0, Qt.AlignVCenter
         )
 
-        animation_layout.addStretch()
+        temps_layout = QVBoxLayout()
+        temps_layout.setSpacing(0)
 
-        # =====================================================
-        # Right Column (Weather Info)
-        # =====================================================
+        temps_layout.addWidget(self.temperature_label)
+        temps_layout.addWidget(self.celsius_label)
 
-        info_layout = QVBoxLayout()
+        hero_layout.addLayout(temps_layout, 0)
+        hero_layout.setAlignment(temps_layout, Qt.AlignVCenter)
+        hero_layout.addStretch()
 
-        info_layout.setSpacing(8)
+        meta_layout = QVBoxLayout()
+        meta_layout.setSpacing(4)
 
-        info_layout.addStretch()
+        meta_layout.addWidget(self.condition_text, 0, Qt.AlignRight)
+        meta_layout.addWidget(self.feels_label, 0, Qt.AlignRight)
+        meta_layout.addWidget(self.minmax_label, 0, Qt.AlignRight)
 
-        info_layout.addWidget(self.temperature_label)
-        info_layout.addWidget(self.celsius_label)
-        info_layout.addWidget(self.description_label)
-        info_layout.addWidget(self.minmax_label)
+        hero_layout.addLayout(meta_layout, 0)
+        hero_layout.setAlignment(meta_layout, Qt.AlignVCenter)
 
-        info_layout.addStretch()
+        hero_panel = QFrame()
+        hero_panel.setObjectName("heroPanel")
+        hero_panel.setLayout(hero_layout)
 
-        # =====================================================
-        # Assemble Hero
-        # =====================================================
+        main_layout.addWidget(hero_panel)
 
-        hero_layout.addLayout(animation_layout, 2)
-        hero_layout.addLayout(info_layout, 3)
+        # Measurements
+        main_layout.addWidget(self._micro_title("Measurements"))
 
-        return hero_layout
+        grid = QGridLayout()
+        grid.setSpacing(10)
 
-    def create_details_layout(self) -> QGridLayout:
-        """
-        Create the weather details section.
-        """
+        tiles = [
+            self.humidity_tile, self.wind_tile,
+            self.visibility_tile, self.pressure_tile,
+            self.sunrise_tile, self.sunset_tile,
+            self.condition_tile, self.updated_tile,
+        ]
 
-        layout = QGridLayout()
+        for index, tile in enumerate(tiles):
+            grid.addWidget(tile, index // 4, index % 4)
 
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setHorizontalSpacing(30)
-        layout.setVerticalSpacing(28)
+        main_layout.addLayout(grid)
 
-        # ---------- Row 1 ----------
-
-        layout.addWidget(self.feels_like_card, 0, 0)
-        layout.addWidget(self.humidity_card, 0, 1)
-        layout.addWidget(self.wind_card, 0, 2)
-        layout.addWidget(self.visibility_card, 0, 3)
-
-        # ---------- Row 2 ----------
-
-        layout.addWidget(self.pressure_card, 1, 0)
-        layout.addWidget(self.sunrise_card, 1, 1)
-        layout.addWidget(self.sunset_card, 1, 2)
-
-        layout.setColumnStretch(0, 1)
-        layout.setColumnStretch(1, 1)
-        layout.setColumnStretch(2, 1)
-        layout.setColumnStretch(3, 1)
-
-        return layout
-
-    def create_forecast_layout(self) -> QVBoxLayout:
-        """
-        Create the five-day forecast section.
-        """
-
-        layout = QVBoxLayout()
-
-        layout.setSpacing(12)
-        layout.setContentsMargins(10, 10, 10, 10)
-
-        layout.addWidget(
-            self.forecast_title,
-            alignment=Qt.AlignCenter
+        # Forecast
+        main_layout.addWidget(
+            self._micro_title("5-Day Forecast, hi / lo against the week range")
         )
 
-        cards_layout = QHBoxLayout()
-        cards_layout.setSpacing(16)
-        cards_layout.addStretch()
+        main_layout.addWidget(self.forecast_table)
 
-        for card in self.forecast_cards:
-            cards_layout.addWidget(card)
+        # Footer
+        footer_layout = QHBoxLayout()
+        footer_layout.setContentsMargins(6, 2, 6, 2)
 
-        cards_layout.addStretch()
-        layout.addLayout(cards_layout)
+        footer_layout.addWidget(self.status_label)
+        footer_layout.addStretch()
+        footer_layout.addWidget(self.time_label)
 
-        return layout
+        main_layout.addLayout(footer_layout)
 
-    def create_footer_layout(self) -> QHBoxLayout:
-        """
-        Create the footer section.
-        """
+        self.sky.setLayout(main_layout)
+        self.setCentralWidget(self.sky)
 
-        layout = QHBoxLayout()
-        layout.addWidget(self.status_label)
-        layout.addStretch()
-        layout.addWidget(self.time_label)
-        return layout
-
+    # ---------------------------------------------------------
+    # Signals
+    # ---------------------------------------------------------
 
     def connect_signals(self) -> None:
         """
         Connect Qt signals to their corresponding methods.
-
-        Signals are events generated by widgets, such as
-        button clicks, pressing Enter, or timer timeouts.
         """
-
-        # -----------------------------------------------------
-        # Search Controls
-        # -----------------------------------------------------
 
         # Clicking the button requests weather.
         self.search_button.clicked.connect(self.get_weather)
@@ -588,16 +453,8 @@ class WeatherApp(QMainWindow):
         # Pressing Enter inside the text box also requests weather.
         self.city_input.returnPressed.connect(self.get_weather)
 
-        # -----------------------------------------------------
-        # Timer
-        # -----------------------------------------------------
-
         # Update the displayed clock every second.
         self.timer.timeout.connect(self.update_clock)
-
-        # -----------------------------------------------------
-        # Background search
-        # -----------------------------------------------------
 
         # The signal hops threads safely; the worker never touches widgets.
         self.search_requested.connect(self.weather_worker.search)
@@ -607,15 +464,15 @@ class WeatherApp(QMainWindow):
         # Quietly repeat the last search on a fixed interval.
         self.refresh_timer.timeout.connect(self.auto_refresh)
 
+    # ---------------------------------------------------------
+    # Search flow
+    # ---------------------------------------------------------
+
     def get_weather(self) -> None:
         """
         Retrieve weather information for the city entered by
         the user.
         """
-
-        # -----------------------------------------------------
-        # Read the city entered by the user
-        # -----------------------------------------------------
 
         city = self.city_input.text().strip()
 
@@ -654,8 +511,7 @@ class WeatherApp(QMainWindow):
 
         self.begin_search(self.weather_data.city, auto=True)
 
-    def on_search_done(self, weather: WeatherData,
-        forecast: list[ForecastData]) -> None:
+    def on_search_done(self, weather, forecast) -> None:
         """
         Handle a successful background search.
         """
@@ -698,6 +554,130 @@ class WeatherApp(QMainWindow):
 
         self.display_error(message)
 
+    # ---------------------------------------------------------
+    # Display
+    # ---------------------------------------------------------
+
+    def load_weather_icon(self, weather_id: int) -> None:
+        """
+        Render the condition SVG into the hero glyph.
+        """
+
+        renderer = QSvgRenderer(IconManager.get_icon_path(weather_id))
+
+        pixmap = QPixmap(HERO_ICON_SIZE, HERO_ICON_SIZE)
+        pixmap.fill(Qt.transparent)
+
+        painter = QPainter(pixmap)
+        renderer.render(painter)
+        painter.end()
+
+        self.glyph_label.setPixmap(pixmap)
+
+    def load_flag(self, country_code: str) -> None:
+        """
+        Render the country flag into the status line.
+        """
+
+        renderer = QSvgRenderer(FlagManager.get_flag_path(country_code))
+
+        pixmap = QPixmap(FLAG_SIZE, FLAG_SIZE)
+        pixmap.fill(Qt.transparent)
+
+        painter = QPainter(pixmap)
+        renderer.render(painter)
+        painter.end()
+
+        self.flag_label.setPixmap(pixmap)
+
+    def display_weather(self, weather) -> None:
+        """
+        Fill every panel from a WeatherData model.
+        """
+
+        condition = self.resolve_condition(weather)
+        self.apply_condition(condition)
+        accent = ConditionTheme.accent(condition)
+
+        self.load_weather_icon(weather.weather_id)
+        self.load_flag(weather.country)
+
+        self.station_label.setText(
+            f"STATION: {weather.city.upper()}, {weather.country.upper()}"
+        )
+
+        self.live_badge.setText(f"\u25cf LIVE  {weather.description.upper()}")
+
+        self.temperature_label.setText(f"{weather.temperature_f:.0f}\u00b0F")
+        self.celsius_label.setText(f"{weather.temperature_c:.0f}\u00b0C")
+
+        self.condition_text.setText(weather.description.upper())
+        self.feels_label.setText(f"FEELS LIKE {weather.feels_like_f:.0f}\u00b0")
+        self.minmax_label.setText(
+            f"H {weather.temp_max_f:.0f}\u00b0   L {weather.temp_min_f:.0f}\u00b0"
+        )
+
+        self.humidity_tile.set_value(f"{weather.humidity}%")
+        self.wind_tile.set_value(f"{weather.wind_speed:.0f} mph")
+        self.visibility_tile.set_value(f"{meters_to_miles(weather.visibility):.0f} mi")
+        self.pressure_tile.set_value(f"{weather.pressure} hPa")
+        self.sunrise_tile.set_value(
+            unix_to_local_time(weather.sunrise, weather.timezone)
+        )
+        self.sunset_tile.set_value(
+            unix_to_local_time(weather.sunset, weather.timezone)
+        )
+        self.condition_tile.set_value(f"{weather.weather_id}")
+
+        fetched = self.fetched_at or datetime.now()
+        self.updated_tile.set_value(f"{fetched:%H:%M} local")
+
+        self._forecast_accent = accent
+
+        self.status_label.setText(f"Weather updated for {weather.city}")
+
+        self.update_clock()
+
+    def display_forecast(self, forecast: list) -> None:
+        """
+        Display the 5-day forecast table.
+
+        The table needs the active accent, which display_weather
+        resolves before this is called.
+        """
+
+        self._last_forecast = forecast
+
+        if self._forecast_accent is not None:
+            self.forecast_table.update_forecast(forecast, self._forecast_accent)
+
+    def display_error(self, message: str) -> None:
+        """
+        Display an error message.
+        """
+
+        self.status_label.setText(message)
+
+    def update_clock(self) -> None:
+
+        """
+         Update the displayed local time for the selected city.
+         """
+
+        if self.weather_data is None:
+            self.time_label.setText("--:--")
+            return
+
+        city_time = datetime.now(timezone(
+            timedelta(seconds=self.weather_data.timezone)
+        ))
+
+        self.time_label.setText(city_time.strftime("%I:%M:%S %p"))
+
+    # ---------------------------------------------------------
+    # Shutdown
+    # ---------------------------------------------------------
+
     def closeEvent(self, event) -> None:
         """
         Stop the background thread before the window goes away.
@@ -711,184 +691,32 @@ class WeatherApp(QMainWindow):
 
         event.accept()
 
-    def change_theme(self, theme_name: str) -> None:
-        """
-        Apply the selected application theme.
-        """
-
-        self.current_theme = theme_name
-
-        self.setStyleSheet(
-            ThemeManager.load_theme(theme_name)
-        )
-
-        if theme_name == "light":
-            self.light_theme_action.setChecked(True)
-        else:
-            self.dark_theme_action.setChecked(True)
-
-    def display_weather(self, weather: WeatherData) -> None:
-
-
-        self.city_label.setText(
-            f"{weather.city}, {weather.country}"
-        )
-
-        self.load_flag(weather.country)
-
-        self.temperature_label.setText(
-            f"{weather.temperature_f:.0f}°F"
-        )
-
-        self.celsius_label.setText(
-            f"{weather.temperature_c:.0f}°C"
-        )
-
-        self.hero_animation.set_animation(
-            AnimationManager.get_weather_animation(
-                weather.weather_id
-            )
-        )
-
-        self.description_label.setText(
-            weather.description
-        )
-
-        self.minmax_label.setText(
-            f"Min: {weather.temp_min_f:.0f}°F / "
-            f"{weather.temp_min_c:.0f}°C    "
-            f"Max: {weather.temp_max_f:.0f}°F / "
-            f"{weather.temp_max_c:.0f}°C"
-        )
-
-        # =====================================================
-        # Update Weather Details
-        # =====================================================
-
-        self.feels_like_card.set_value(
-            f"{weather.feels_like_f:.0f}°F\n{weather.feels_like_c:.0f}°C"
-        )
-
-        self.humidity_card.set_value(
-            f"{weather.humidity}%"
-        )
-
-        self.wind_card.set_value(
-            f"{weather.wind_speed:.1f} mph"
-        )
-
-        self.visibility_card.set_value(
-            f"{meters_to_miles(weather.visibility):.1f} mi"
-        )
-
-        self.pressure_card.set_value(
-            f"{weather.pressure} hPa"
-        )
-
-        # =====================================================
-        # Sunrise / Sunset
-        # =====================================================
-
-        self.sunrise_card.set_value(
-            unix_to_local_time(weather.sunrise, weather.timezone)
-        )
-
-        self.sunset_card.set_value(
-            unix_to_local_time(weather.sunset, weather.timezone)
-        )
-
-        # =====================================================
-        # Footer
-        # =====================================================
-
-        self.status_label.setText(
-            f"Weather updated for {weather.city}"
-        )
-
-        self.update_clock()
-
-    def display_forecast(self,forecast: list[ForecastData]) -> None:
-        """
-        Display the 5-day forecast.
-        """
-
-        for card, day in zip(self.forecast_cards, forecast):
-            card.update_forecast(day)
-
-
-    def display_error(self, message: str) -> None:
-        """
-        Display an error message.
-        """
-
-        self.status_label.setText(message)
-
-
-    def update_clock(self) -> None:
-
-        """
-         Update the displayed local time for the selected city.
-         """
-
-        if self.weather_data is None:
-            self.time_label.setText("--:--")
-            return
-
-        city_timezone = timezone(
-            timedelta(seconds=self.weather_data.timezone)
-        )
-
-        city_time = datetime.now(city_timezone)
-
-        self.time_label.setText(
-            city_time.strftime("%I:%M:%S %p")
-        )
-
+    # ---------------------------------------------------------
+    # Styles
+    # ---------------------------------------------------------
 
     def apply_styles(self) -> None:
         """
-        Apply the application's default stylesheet.
-
-        Later, this method will load either the light or dark
-        theme from external .qss files.
+        Apply the glass console stylesheet and window defaults.
         """
 
-        # -----------------------------------------------------
-        # Window
-        # -----------------------------------------------------
-
         self.setWindowTitle("Weather App Pro")
-        self.resize(500, 700)
+        self.setMinimumSize(900, 760)
+        self.resize(980, 830)
 
-        # -----------------------------------------------------
-        # Widget Alignment
-        # -----------------------------------------------------
-
-        self.city_label.setAlignment(Qt.AlignCenter)
-
-        self.temperature_label.setAlignment(Qt.AlignCenter)
-        self.description_label.setAlignment(Qt.AlignCenter)
-        self.minmax_label.setAlignment(Qt.AlignCenter)
-        self.celsius_label.setAlignment(Qt.AlignCenter)
+        # Defaults before the first search
+        self.temperature_label.setText("--\u00b0F")
+        self.celsius_label.setText("--\u00b0C")
+        self.condition_text.setText("SEARCH FOR A CITY")
+        self.feels_label.setText("FEELS LIKE --\u00b0")
+        self.minmax_label.setText("H --\u00b0   L --\u00b0")
+        self.live_badge.setText("\u25cf OFFLINE")
+        self.status_label.setText("Ready")
 
         self.time_label.setAlignment(Qt.AlignRight)
 
-        # -----------------------------------------------------
-        # Default Text
-        # -----------------------------------------------------
+        # The glass console theme. Accent colors follow the condition
+        # through the dynamic property set in apply_condition.
+        self.setStyleSheet(ThemeManager.load_theme("console"))
 
-        self.temperature_label.setText("--°F")
-        self.celsius_label.setText("--°C")
-        self.description_label.setText("Search for a city")
-
-        self.status_label.setText("Ready")
-
-        # -----------------------------------------------------
-        # Style Sheet
-        # -----------------------------------------------------
-
-
-        self.change_theme(self.current_theme)
-
-
-
+        self.apply_condition(self.current_condition)

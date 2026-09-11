@@ -546,14 +546,30 @@ class WeatherAPI:
 
                 distance = abs(forecast_time.hour - 12)
 
+                temp_f = item["main"]["temp"]
+                temp_c = fahrenheit_to_celsius(temp_f)
+
                 if date not in daily_forecasts:
-                    daily_forecasts[date] = (distance, item)
+                    daily_forecasts[date] = {
+                        "distance": distance,
+                        "item": item,
+                        "min_f": temp_f,
+                        "max_f": temp_f,
+                        "min_c": temp_c,
+                        "max_c": temp_c,
+                    }
                     continue
 
-                best_distance, _ = daily_forecasts[date]
+                entry = daily_forecasts[date]
 
-                if distance < best_distance:
-                    daily_forecasts[date] = (distance, item)
+                entry["min_f"] = min(entry["min_f"], temp_f)
+                entry["max_f"] = max(entry["max_f"], temp_f)
+                entry["min_c"] = min(entry["min_c"], temp_c)
+                entry["max_c"] = max(entry["max_c"], temp_c)
+
+                if distance < entry["distance"]:
+                    entry["distance"] = distance
+                    entry["item"] = item
         except (KeyError, TypeError, ValueError, OverflowError) as error:
             logger.error("Forecast conversion failed: %s", type(error).__name__)
             raise ApiDataError(MESSAGE_BAD_PAYLOAD) from None
@@ -565,7 +581,8 @@ class WeatherAPI:
         forecast = []
 
         try:
-            for _, item in daily_forecasts.values():
+            for entry in daily_forecasts.values():
+                item = entry["item"]
                 forecast_time = datetime.fromtimestamp(item["dt"])
 
                 temperature_f = item["main"]["temp"]
@@ -577,6 +594,11 @@ class WeatherAPI:
 
                         temperature_f=temperature_f,
                         temperature_c=fahrenheit_to_celsius(temperature_f),
+
+                        temp_min_f=entry["min_f"],
+                        temp_min_c=entry["min_c"],
+                        temp_max_f=entry["max_f"],
+                        temp_max_c=entry["max_c"],
 
                         description=item["weather"][0]["description"].title(),
                         weather_id=item["weather"][0]["id"],

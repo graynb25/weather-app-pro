@@ -8,18 +8,17 @@ and presents them with SVG icons, Lottie animations, and QSS themes.
 
 - Search weather by city
 - Current temperature in Fahrenheit and Celsius
-- Feels like, humidity, wind, visibility, and pressure tiles
-- Minimum and maximum temperature
-- 5-day forecast cards with weather icons
+- Daily hi/lo range bars for the 5-day forecast
 - Live local clock for the selected city
 - Country flag for the searched city
-- Animated Lottie weather and detail icons
-- Light and dark QSS themes
 - Searches run in the background, so the window never freezes
 - Automatic refresh of the last search every 10 minutes
 - The last successful search is saved and shown at startup or when a
   request fails
 - Hand-written error messages that never expose technical detail
+- Glass console design: glass panels over an animated sky that follows
+  the weather, with a palette per condition (clear, cloudy, rain, snow,
+  mist, night), switchable from the Condition menu
 
 ## Requirements
 
@@ -68,7 +67,7 @@ console. The last successful search is kept in `cache.json`
 weather-app-pro/
 │
 ├── main.py                  Entry point, logging, crash hooks, key check
-├── ui.py                    Main window, layouts, signals, display logic
+├── ui.py                    Main window: glass console layout, signals, display
 ├── weather_worker.py        Background search thread (QObject + signals)
 ├── weather_api.py           OpenWeatherMap client, validation, retries
 ├── weather_model.py         WeatherData and ForecastData dataclasses
@@ -78,13 +77,14 @@ weather-app-pro/
 ├── cache.py                 Last successful search, saved as JSON
 ├── config.py                App constants
 ├── utils.py                 Conversion helpers, redact_url
-├── forecast_card.py         One forecast day card
 │
-├── managers/                IconManager, AnimationManager, FlagManager, ThemeManager
-├── widgets/                 DetailCard, forecast widget, LottieWidget
-├── resources/               Icons, Lottie animations, QSS themes, lottie player
-├── tests/                   pytest suites (status mapping, retries, leak guard, cache)
-├── docs/                    Improvement plans (error handling, security, testing, redesign)
+├── managers/                IconManager, FlagManager, ThemeManager,
+│                            AnimationManager, ConditionTheme (palettes)
+├── widgets/                 SkyWidget (animated background), StatTile,
+│                            RangeBar, ForecastTable, LottieWidget
+├── resources/               Icons, animations, lottie player, console.qss theme
+├── tests/                   pytest suites (API, worker, sky, range bars, UI)
+├── docs/                    Improvement plans (redesign, testing, security)
 ├── old/                     Legacy code, reference only
 ├── test_lottie.py           Manual animation test harness
 ├── .env.example             Template for the required environment variables
@@ -102,10 +102,10 @@ These exist as empty placeholder files already:
 - Saved cities (`favorites.py`, `favorites.json`)
 - Persisted settings such as units and theme (`settings.py`, `settings.json`)
 - Painter-based weather effects (`widgets/weather_animation.py`)
-- The remaining pytest suites from `docs/testing-plan.md` (the API, redaction,
-  and logging suites are in `tests/` already)
-- Condition-based themes: `sunny`, `cloudy`, `rainy`, and `snowy` stylesheets
-  exist but the menu currently offers only light and dark
+- The hourly strip from the redesign plan (optional addition to the
+  console design)
+- The remaining pytest suites from `docs/testing-plan.md` (the API,
+  worker, and UI suites are in `tests/` already)
 
 The improvement roadmap lives in `docs/`.
 

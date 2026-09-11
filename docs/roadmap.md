@@ -29,9 +29,9 @@ Detail lives in docs/error-handling-and-security.md.
 
 ## UI Sprint
 
-- [ ] Hero redesign
-- [ ] Detail card redesign
-- [ ] Forecast redesign
+- [x] Hero redesign
+- [x] Detail card redesign
+- [x] Forecast redesign
 - [ ] Responsive layouts
 
 ---
