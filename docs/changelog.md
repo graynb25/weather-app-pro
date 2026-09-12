@@ -249,6 +249,16 @@
 
 ---
 
+## v1.0.3
+
+- Fixed the uninstaller runtime error ("Cannot call 'WizardSilent'
+  function during Uninstall") that appeared at the end of an
+  uninstall. The uninstall phase now uses UninstallSilent().
+- Re-published the GitHub release with corrected notes and checksums
+  (an earlier scripted publish had silently failed).
+
+---
+
 ## Upcoming
 
 - Post-release watch.

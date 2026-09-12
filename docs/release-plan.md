@@ -221,11 +221,23 @@ Not blockers; defaults are proposed.
 - Code signing (no certificate; Windows SmartScreen will warn on
   first run. Accept and document).
 - Auto-update.
-- macOS or Linux builds.
+- macOS and Linux builds (see below).
 - `widgets/weather_animation.py` painter overlay (the sky widget
   covers the need).
 - The remaining roadmap UX sprint items beyond 3.4 (loading spinner,
   fade transitions).
+
+### macOS and Linux builds: what they would take
+
+PyInstaller cannot cross-compile: a macOS .app/.dmg must be built on
+macOS and a Linux AppImage on Linux. The practical route is GitHub
+Actions CI (free minutes cover it, even for a private repo, though
+macOS runners bill at a 10x minute multiplier). Beyond the build,
+each platform is its own workstream: macOS adds an .app bundle plus
+Gatekeeper friction for unsigned binaries (signing needs an Apple
+Developer account), and Linux needs an AppImage or deb package with a
+.desktop entry. Proposed as a separate future plan if non-Windows
+users materialize; not a 1.0.x item.
 
 ## Build-time dependency additions
 
