@@ -175,12 +175,15 @@ hours to activate, which our 401 message already mentions).
 
 - [x] 4.1 (H) Full pytest suite green (152 tests) plus the coverage
   report captured at release/coverage-report-v1.0.0.txt (87% total).
-- [ ] 4.2 (H) Clean-machine manual pass (fresh Windows user or VM):
-  install, first run, key setup, search, all six condition themes,
-  favorites, unit toggle, auto refresh, offline cache behavior,
-  uninstall. Follow `release_checklist.md`. In progress on the owner's
-  machine (no VM available): the pass already caught and fixed the
-  v1.0.2 first-run crash; the remaining walkthrough is interactive.
+- [x] 4.2 (H) Clean-machine manual pass. Completed September 2026 on
+  the owner's machine after a full data reset (no VM needed: the app
+  bundles its runtime). Walkthrough verified: download from the
+  published release, checksum check, install, first-run key setup,
+  searches, all features including the hourly strip, favorites, unit
+  toggle, auto refresh at the configured interval, and uninstall with
+  the keep-or-delete prompt. The pass caught two real bugs that were
+  fixed and re-released: the v1.0.2 first-run crash and the v1.0.3
+  uninstaller runtime error.
 - [x] 4.3 (M) The automatable checklist items executed and filed at
   release/PRE-RELEASE-CHECKS-v1.0.0.txt (the UI and behavior rows are
   the interactive pass in 4.2).

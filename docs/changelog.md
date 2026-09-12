@@ -240,6 +240,15 @@
 
 ---
 
+## v1.0.3
+
+- Fixed the uninstaller runtime error ("Cannot call 'WizardSilent'
+  function during Uninstall"): the uninstall phase must use
+  UninstallSilent(). Verified live: the interactive keep-or-delete
+  prompt now shows correctly and both answers behave.
+
+---
+
 ## Upcoming
 
 - Post-release watch.

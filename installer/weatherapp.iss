@@ -53,14 +53,16 @@ Filename: "{app}\{#MyAppExe}"; Description: "Launch {#MyAppName}"; \
 // User data (key file, settings, favorites, cache) lives outside the
 // install directory, so the uninstaller never touches it by default.
 // The owner chooses; keeping it is the default action.
-// Silent uninstalls (/SUPPRESSMSGBOXES) always keep data: a
-// suppressed prompt returns unpredictable answers, so the prompt is
-// never shown and DelTree is never called.
+// Silent uninstalls (/SUPPRESSMSGBOXES or /SILENT) always keep data:
+// a suppressed prompt returns unpredictable answers, so the prompt is
+// never shown and DelTree is never called. Note: WizardSilent()
+// cannot be called during uninstall; UninstallSilent() is the
+// uninstall-phase equivalent.
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
     DataDir: string;
 begin
-    if (CurUninstallStep = usDone) and (not WizardSilent()) then begin
+    if (CurUninstallStep = usDone) and (not UninstallSilent()) then begin
         DataDir := ExpandConstant('{localappdata}\WeatherAppPro');
 
         if DirExists(DataDir) then begin
