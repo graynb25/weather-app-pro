@@ -178,7 +178,9 @@ hours to activate, which our 401 message already mentions).
 - [ ] 4.2 (H) Clean-machine manual pass (fresh Windows user or VM):
   install, first run, key setup, search, all six condition themes,
   favorites, unit toggle, auto refresh, offline cache behavior,
-  uninstall. Follow `release_checklist.md`.
+  uninstall. Follow `release_checklist.md`. In progress on the owner's
+  machine (no VM available): the pass already caught and fixed the
+  v1.0.2 first-run crash; the remaining walkthrough is interactive.
 - [x] 4.3 (M) The automatable checklist items executed and filed at
   release/PRE-RELEASE-CHECKS-v1.0.0.txt (the UI and behavior rows are
   the interactive pass in 4.2).
