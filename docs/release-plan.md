@@ -180,12 +180,12 @@ hours to activate, which our 401 message already mentions).
 - [x] 4.3 (M) The automatable checklist items executed and filed at
   release/PRE-RELEASE-CHECKS-v1.0.0.txt (the UI and behavior rows are
   the interactive pass in 4.2).
-- [ ] 4.4 (M) GitHub release: tag `v1.0.0`, installer and portable zip
-  attached, SHA-256 checksums in the notes. The repo is private, so
-  the release is too.
-- [ ] 4.5 (L) Post-release watch: missing-DLL reports, antivirus
-  false positives (common for unsigned PyInstaller builds), and the
-  first lines of real user logs if anyone shares them.
+- [x] 4.4 (M) GitHub release published: tag `v1.0.0`, installer and
+  portable zip attached, SHA-256 checksums in the notes
+  (releases/tag/v1.0.0). The repo and release are private.
+- [ ] 4.5 (L) Post-release watch (ongoing): missing-DLL reports,
+  antivirus false positives (common for unsigned PyInstaller builds),
+  and the first lines of real user logs if anyone shares them.
 
 ## Decisions to confirm before starting
 

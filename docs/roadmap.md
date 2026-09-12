@@ -59,10 +59,10 @@ Detail lives in docs/error-handling-and-security.md.
 
 ## Release
 
-Detail lives in docs/release-plan.md (phase 6).
+Detail lives in docs/release-plan.md (phase 6). Shipped in v1.0.0.
 
-- [ ] Installer
-- [ ] EXE
-- [ ] App icon file for the binary (window icon shipped in v0.11)
-- [ ] About dialog
-- [ ] Documentation
+- [x] Installer
+- [x] EXE
+- [x] App icon file for the binary (window icon shipped in v0.11)
+- [x] About dialog
+- [x] Documentation
