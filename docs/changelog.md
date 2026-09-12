@@ -228,6 +228,18 @@
 
 ---
 
+## v1.0.1
+
+- Fixed a data-loss risk: a silent uninstall (running the uninstaller
+  with /SUPPRESSMSGBOXES, or scripted removals) deleted the user data
+  folder without asking. Silent uninstalls now always keep data;
+  interactive uninstalls still ask, with keep as the default.
+- The OpenWeatherMap attribution links (footer and About dialog) are
+  light-colored for readability on the dark theme.
+- Refreshed the README screenshots.
+
+---
+
 ## Upcoming
 
-- Release sprint: clean-machine pass, GitHub release with artifacts.
+- Post-release watch.

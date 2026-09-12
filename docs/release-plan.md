@@ -144,7 +144,9 @@ hours to activate, which our 401 message already mentions).
   VERSION file, Program Files default with per-user option, Start
   Menu and optional desktop shortcuts, uninstall entry.
 - [x] 2.2 (M) Uninstaller offers to keep user data (key, settings,
-  favorites) and defaults to keeping it.
+  favorites) and defaults to keeping it. Amended in v1.0.1: silent
+  uninstalls (/SUPPRESSMSGBOXES) bypassed the prompt and deleted data;
+  they now always keep data.
 - [x] 2.3 (M) Portable zip variant: the onedir tree plus a README
   line; `.env` next to the EXE works without any install or admin
   rights.
