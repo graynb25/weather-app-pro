@@ -478,6 +478,55 @@ def test_ctrl_f_shortcut_is_wired(qtbot):
     window.focus_search()
 
 
+def test_first_run_key_setup_saves_a_valid_key(qtbot, monkeypatch):
+    """
+    Regression test for the v1.0.1 clean-machine finding: the first-run
+    dialog crashed with a missing QInputDialog import, which only
+    happens on machines without a project .env.
+    """
+
+    import ui as ui_module
+    from geocoding import GeoResult  # noqa: F401  (import must not break)
+
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    window.weather_api.api_key = None
+
+    class FakeInput:
+        @staticmethod
+        def getText(*args, **kwargs):
+            return ("fresh-key-123", True)
+
+    monkeypatch.setattr(ui_module, "QInputDialog", FakeInput)
+    monkeypatch.setattr(ui_module, "validate_key", lambda key: True)
+
+    saved = []
+    monkeypatch.setattr(ui_module, "store_key", lambda key: saved.append(key))
+
+    # Keep the test non-interactive: dialogs become no-ops.
+    class FakeMessageBox:
+        Ok = 1024
+        Yes = 16384
+        No = 65536
+        ActionRole = 3
+
+        @staticmethod
+        def information(*args, **kwargs):
+            pass
+
+        @staticmethod
+        def question(*args, **kwargs):
+            return FakeMessageBox.Yes
+
+    monkeypatch.setattr(ui_module, "QMessageBox", FakeMessageBox)
+
+    window.offer_key_setup()
+
+    assert saved == ["fresh-key-123"]
+    assert window.weather_api.api_key == "fresh-key-123"
+
+
 def test_forecast_table_fills_rows(qtbot):
     table = ForecastTable()
     qtbot.addWidget(table)

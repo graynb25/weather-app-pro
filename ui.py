@@ -33,7 +33,7 @@ from PyQt5.QtSvg import QSvgRenderer
 from PyQt5.QtWidgets import (QWidget, QMainWindow, QLabel, QPushButton,
     QLineEdit, QVBoxLayout, QGridLayout, QActionGroup, QAction,
     QHBoxLayout, QFrame, QLayout, QScrollArea, QCompleter, QMessageBox,
-    QShortcut)
+    QInputDialog, QShortcut)
 from PyQt5.QtCore import QStringListModel
 from geocoding import Geocoder
 
