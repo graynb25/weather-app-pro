@@ -261,4 +261,6 @@
 
 ## Upcoming
 
+- Added CONTRIBUTING.md: contributor setup, ground rules, test and PR
+  expectations. It is the public counterpart of the local agent.md.
 - Post-release watch.

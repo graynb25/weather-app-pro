@@ -125,8 +125,9 @@ weather-app-pro/
 └── requirements-dev.txt     Pinned test dependencies
 ```
 
-`agent.md` holds the working rules for this project. Anyone (human or AI)
-changing the code should read it first.
+`CONTRIBUTING.md` covers setup, tests, and the rules for changing the
+code. `agent.md` holds extra working rules (including the ones for AI
+agents); it is kept out of the repository on purpose.
 
 ## Planned Features
 

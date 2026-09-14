@@ -1,8 +1,11 @@
 # Testing Plan (pytest)
 
-Phase 2 of the roadmap. Status: planned, not started. Nothing in this document
-exists in the codebase yet; `test_lottie.py` is a manual GUI harness, not an
-automated test.
+Phase 2 of the roadmap. Status: largely complete. The suites in `tests/`
+cover utils, the API client (including the leak guard), workers, cache,
+settings, favorites, geocoding, paths, logging bootstrap, condition
+theming, and smoke-level UI tests. The suite list below is the original
+plan, kept as background for what each suite should hold;
+`test_lottie.py` is a manual GUI harness, not an automated test.
 
 ## Stack
 
