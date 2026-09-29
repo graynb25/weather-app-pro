@@ -149,6 +149,12 @@ class Settings:
             if key not in payload:
                 continue
 
+            # A key still holding its default is stored as null. That
+            # is not an invalid value, so it must not be reported as
+            # one on every single launch.
+            if payload[key] is None and DEFAULTS[key] is None:
+                continue
+
             validated = self._validate(key, payload[key])
 
             if validated is not None:

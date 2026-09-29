@@ -16,6 +16,9 @@ Project: Weather App Pro
 
 import paths
 
+# The one glyph every folder falls back to when a mapping misses.
+FALLBACK_ICON = "not-available.svg"
+
 
 class IconManager:
     """
@@ -101,11 +104,16 @@ class IconManager:
     def get_detail_icon(cls, detail_name: str) -> str:
         """
         Return the path to a detail SVG icon.
+
+        An unknown name falls back to the shared not-available glyph in
+        the weather folder, which is the one fallback that is actually
+        on disk. Pointing into the details folder returned a path that
+        did not exist, so the caller rendered an empty space.
         """
 
-        filename = cls.DETAIL_ICONS.get(
-            detail_name,
-            "not-available.svg"
-        )
+        filename = cls.DETAIL_ICONS.get(detail_name)
+
+        if filename is None:
+            return str(cls.WEATHER_FOLDER / FALLBACK_ICON)
 
         return str(cls.DETAIL_FOLDER / filename)

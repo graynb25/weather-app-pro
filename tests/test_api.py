@@ -319,6 +319,126 @@ def test_429_with_huge_retry_after_fails_immediately(api, requests_mock):
     assert len(requests_mock.request_history) == 1
 
 
+def test_retry_after_at_the_cap_is_honored(api, requests_mock, fast_retries):
+    """
+    RETRY_AFTER_CAP_SECONDS is a real boundary, so probe both sides of
+    it rather than only a value far past it.
+    """
+
+    requests_mock.get(ANY, [
+        {"status_code": 429, "headers": {"Retry-After": "30"}, "json": {}},
+        {"status_code": 200, "json": VALID_CURRENT_PAYLOAD},
+    ])
+
+    weather = api.get_current_weather("London")
+
+    assert weather.city == "London"
+    assert fast_retries == [30]
+
+
+def test_retry_after_one_second_over_the_cap_is_refused(api, requests_mock,
+    fast_retries):
+    requests_mock.get(ANY, status_code=429,
+        headers={"Retry-After": "31"}, json={})
+
+    with pytest.raises(RateLimitError):
+        api.get_current_weather("London")
+
+    assert len(requests_mock.request_history) == 1
+    assert fast_retries == []
+
+
+def test_negative_retry_after_does_not_escape_as_a_value_error(api,
+    requests_mock, fast_retries):
+    """
+    time.sleep raises ValueError on a negative wait. The 429 handling
+    sits outside the try that wraps requests.get, so an unguarded
+    header value reached the user as a generic crash message instead
+    of the rate limit wording.
+    """
+
+    requests_mock.get(ANY, status_code=429,
+        headers={"Retry-After": "-5"}, json={})
+
+    with pytest.raises(RateLimitError) as raised:
+        api.get_current_weather("London")
+
+    assert raised.value.user_message == (
+        "Too many requests. Wait a minute and try again."
+    )
+    assert len(requests_mock.request_history) == 1
+    assert fast_retries == []
+
+
+def test_malformed_retry_after_falls_back_to_no_wait(api, requests_mock,
+    fast_retries):
+    """
+    An HTTP-date value is not a number, so it must not be treated as
+    one and must not be slept on.
+    """
+
+    requests_mock.get(ANY, status_code=429,
+        headers={"Retry-After": "Wed, 21 Oct 2015 07:28:00 GMT"}, json={})
+
+    with pytest.raises(RateLimitError):
+        api.get_current_weather("London")
+
+    assert len(requests_mock.request_history) == 1
+    assert fast_retries == []
+
+
+def test_a_server_error_recovers_on_a_later_attempt(api, requests_mock):
+    """
+    Retrying is only useful if a good response is actually used.
+    """
+
+    requests_mock.get(ANY, [
+        {"status_code": 500, "json": {}},
+        {"status_code": 500, "json": {}},
+        {"status_code": 200, "json": VALID_CURRENT_PAYLOAD},
+    ])
+
+    weather = api.get_current_weather("London")
+
+    assert weather.city == "London"
+    assert len(requests_mock.request_history) == 3
+
+
+def test_a_timeout_is_retried_like_a_connection_error(api, requests_mock,
+    fast_retries):
+    requests_mock.get(ANY, exc=requests.exceptions.Timeout("slow"))
+
+    with pytest.raises(NetworkError):
+        api.get_current_weather("London")
+
+    assert len(requests_mock.request_history) == 3
+    assert fast_retries == [0.5, 1.0]
+
+
+def test_a_generic_request_exception_is_key_free(api, requests_mock,
+    weather_log):
+    """
+    HTTPError carries the request URL, which carries the key. This is
+    the one transport path where the raw exception text is logged, so
+    it needs the leak guard just as much as the status paths do.
+    """
+
+    requests_mock.get(ANY, exc=requests.exceptions.HTTPError(
+        "404 Client Error: Not Found for url: "
+        f"{ANY}?appid={DUMMY_API_KEY}&q=London"
+    ))
+
+    with pytest.raises(ApiServiceError) as raised:
+        api.get_current_weather("London")
+
+    log_text = "\n".join(weather_log.formatted)
+
+    assert DUMMY_API_KEY not in raised.value.user_message
+    assert DUMMY_API_KEY not in log_text
+    # The positive control: redaction really ran on this path.
+    assert "appid=***" in log_text
+
+
 # ---------------------------------------------------------
 # Success paths
 # ---------------------------------------------------------
@@ -345,10 +465,20 @@ def test_get_current_weather_builds_the_model(api, requests_mock):
 
 
 def test_get_forecast_picks_the_entry_closest_to_midday(api, requests_mock):
-    # Local noon for two days, plus a morning entry that must lose.
-    monday_noon = int(datetime(2026, 1, 5, 12, 0).timestamp())
-    monday_morning = int(datetime(2026, 1, 5, 6, 0).timestamp())
-    tuesday_noon = int(datetime(2026, 1, 6, 12, 0).timestamp())
+    # The rows are the city's days, so the entries are pinned to city
+    # time. Building them in machine-local time would make the result
+    # depend on the timezone of whoever runs the suite.
+    city_tz = timezone(timedelta(seconds=3600))
+
+    monday_noon = int(
+        datetime(2026, 1, 5, 12, 0, tzinfo=city_tz).timestamp()
+    )
+    monday_morning = int(
+        datetime(2026, 1, 5, 6, 0, tzinfo=city_tz).timestamp()
+    )
+    tuesday_noon = int(
+        datetime(2026, 1, 6, 12, 0, tzinfo=city_tz).timestamp()
+    )
 
     requests_mock.get(ANY, status_code=200, json={
         "city": {"timezone": 3600},
@@ -368,6 +498,71 @@ def test_get_forecast_picks_the_entry_closest_to_midday(api, requests_mock):
 
     # Every entry is long past, so the strip keeps only the NOW chip.
     assert [chip.hour for chip in hourly] == ["NOW"]
+
+
+def test_forecast_days_do_not_follow_the_owners_timezone(api, requests_mock):
+    """
+    The rows must be the city's calendar days, not the machine's.
+
+    The three entries are 23:00 UTC on the 5th, then 02:00 and 05:00
+    UTC on the 6th. For a city at UTC-11 those read as 12:00, 15:00
+    and 18:00 on the 5th local, so all three land in one row and the
+    12:00 entry is closest to midday. On a machine in UTC+0 the same
+    instants read as 23:00, 02:00 and 05:00, which would split them
+    across two rows.
+    """
+
+    entries = [
+        int(datetime(2026, 1, 5, 23, 0, tzinfo=timezone.utc).timestamp()),
+        int(datetime(2026, 1, 6, 2, 0, tzinfo=timezone.utc).timestamp()),
+        int(datetime(2026, 1, 6, 5, 0, tzinfo=timezone.utc).timestamp()),
+    ]
+
+    requests_mock.get(ANY, status_code=200, json={
+        "city": {"timezone": -11 * 3600},
+        "list": [
+            forecast_item(entries[0], 40.0),
+            forecast_item(entries[1], 50.0),
+            forecast_item(entries[2], 60.0),
+        ],
+    })
+
+    forecast, hourly = api.get_forecast("Pago Pago")
+
+    assert len(forecast) == 1
+    assert forecast[0].date == "2026-01-05"
+    assert forecast[0].temperature_f == 40.0
+    assert forecast[0].temp_min_f == 40.0
+    assert forecast[0].temp_max_f == 60.0
+
+
+def test_forecast_is_capped_at_five_days(api, requests_mock):
+    """
+    The endpoint returns 40 three-hour entries, which usually straddle
+    six calendar days. Only the five nearest may reach the table.
+    """
+
+    start = datetime.now(timezone.utc) - timedelta(hours=2)
+
+    entries = [
+        int((start + timedelta(hours=3 * i)).timestamp())
+        for i in range(40)
+    ]
+
+    requests_mock.get(ANY, status_code=200, json={
+        "city": {"timezone": 0},
+        "list": [
+            forecast_item(dt, 50.0 + (i % 5)) for i, dt in enumerate(entries)
+        ],
+    })
+
+    forecast, hourly = api.get_forecast("London")
+
+    assert len(forecast) == 5
+    assert len({day.date for day in forecast}) == 5
+    assert [day.date for day in forecast] == sorted(
+        day.date for day in forecast
+    )
 
 
 def test_get_hourly_builds_future_chips(api, requests_mock):

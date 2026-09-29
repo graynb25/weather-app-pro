@@ -53,4 +53,36 @@ def test_store_key_writes_a_dotenv_line(key_file):
     assert key_file.read_text(encoding="utf-8") == (
         "OPENWEATHER_API_KEY=" + DUMMY_API_KEY + "\n"
     )
-    assert not key_file.with_suffix(".json.tmp").exists()
+
+
+def test_store_key_refuses_a_key_with_a_newline(key_file):
+    """
+    The file is dotenv format, so a key carrying a newline would be
+    read back on the next start as extra variables. The app's own
+    dotted key file must stay a single line.
+    """
+
+    with pytest.raises(ValueError):
+        store_key("abc\nWEATHER_CONSOLE_LOG=1")
+
+    assert not key_file.exists()
+
+
+def test_store_key_refuses_a_key_with_a_carriage_return(key_file):
+    with pytest.raises(ValueError):
+        store_key("abc\rWEATHER_CONSOLE_LOG=1")
+
+    assert not key_file.exists()
+
+
+def test_store_key_accepts_a_key_with_a_hyphen(key_file):
+    """
+    Only control characters are refused. Whether a key works is
+    decided by validate_key, not by guessing at the key format.
+    """
+
+    store_key("abc-123_def")
+
+    assert key_file.read_text(encoding="utf-8") == (
+        "OPENWEATHER_API_KEY=abc-123_def\n"
+    )

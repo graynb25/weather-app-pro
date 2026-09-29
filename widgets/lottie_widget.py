@@ -15,7 +15,9 @@ Author: Gray Nelson
 Project: Weather App Pro
 """
 
-from pathlib import Path
+import json
+
+import paths
 
 from PyQt5.QtCore import Qt, QUrl
 from PyQt5.QtWebEngineWidgets import QWebEngineView
@@ -26,11 +28,10 @@ class LottieWidget(QWidget):
     Reusable widget for displaying Lottie animations.
     """
 
-    PROJECT_ROOT = Path(__file__).resolve().parent.parent
-
+    # Resolved through paths.py so a frozen build finds the player in
+    # its extraction directory instead of looking next to this file.
     HTML_FILE = (
-            PROJECT_ROOT
-            / "resources"
+            paths.resources_root()
             / "html"
             / "lottie_player.html"
     )
@@ -83,12 +84,16 @@ class LottieWidget(QWidget):
     def set_animation(self, animation_path: str) -> None:
         """
         Load a Lottie animation into the player.
+
+        The path is encoded as a JSON string so a quote or a backslash
+        in it cannot break out of the JavaScript string literal and run
+        as code in the player page.
         """
 
         if not self.player_ready:
             return
 
-        script = f'setAnimation("{animation_path}")'
+        script = f"setAnimation({json.dumps(animation_path)})"
 
         self.web_view.page().runJavaScript(script)
 

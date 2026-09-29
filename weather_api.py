@@ -139,6 +139,8 @@ FORECAST_TOP_FIELDS = (
 
 HOURLY_CHIPS = 8               # eight three-hour steps = next 24 hours
 
+FORECAST_DAYS = 5              # rows the console can show
+
 
 def _path_exists(data: dict, path: tuple) -> bool:
     """
@@ -311,8 +313,12 @@ class WeatherAPI:
         """
         Read the Retry-After header as seconds.
 
-        Returns None when the header is missing or is not a plain
-        number. HTTP-date values are not worth parsing for this API.
+        Returns None when the header is missing, is not a plain
+        number, or is not a sane wait. HTTP-date values are not worth
+        parsing for this API. A negative value must be rejected here:
+        time.sleep raises ValueError on one, which would escape the
+        request handling and reach the user as a generic error instead
+        of the rate limit wording.
         """
 
         raw = response.headers.get("Retry-After")
@@ -321,9 +327,14 @@ class WeatherAPI:
             return None
 
         try:
-            return float(raw)
+            seconds = float(raw)
         except ValueError:
             return None
+
+        if seconds < 0:
+            return None
+
+        return seconds
 
     def _raise_http_error(self, response: requests.Response) -> None:
         """
@@ -553,6 +564,13 @@ class WeatherAPI:
             self._validate_forecast_payload
         )
 
+        # The daily rows are the city's days, not the owner's. The
+        # payload's city block carries the offset, so every conversion
+        # below pins it. Without this the calendar day an entry falls
+        # in, and which entry counts as midday, both depend on the
+        # timezone of the machine running the app.
+        city_tz = timezone(timedelta(seconds=data["city"]["timezone"]))
+
         daily_forecasts = {}
 
         # ---------------------------------------------------------
@@ -562,7 +580,7 @@ class WeatherAPI:
         try:
             for item in data["list"]:
 
-                forecast_time = datetime.fromtimestamp(item["dt"])
+                forecast_time = datetime.fromtimestamp(item["dt"], city_tz)
 
                 date = forecast_time.date()
 
@@ -605,7 +623,7 @@ class WeatherAPI:
         try:
             for entry in daily_forecasts.values():
                 item = entry["item"]
-                forecast_time = datetime.fromtimestamp(item["dt"])
+                forecast_time = datetime.fromtimestamp(item["dt"], city_tz)
 
                 temperature_f = item["main"]["temp"]
 
@@ -631,10 +649,16 @@ class WeatherAPI:
             raise ApiDataError(MESSAGE_BAD_PAYLOAD) from None
 
         # ---------------------------------------------------------
-        # Sort by date
+        # Sort by date, then keep the five days nearest to now
         # ---------------------------------------------------------
 
         forecast.sort(key=lambda day: day.date)
+
+        # The endpoint returns 40 three-hour entries, which usually
+        # straddle six calendar days. The table has five rows, so trim
+        # here rather than letting the row loop drop the tail by
+        # accident: the last day is the least useful one.
+        forecast = forecast[:FORECAST_DAYS]
 
         return forecast, self._build_hourly(data)
 

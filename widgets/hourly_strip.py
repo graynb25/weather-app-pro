@@ -128,12 +128,24 @@ class HourlyStrip(QFrame):
         The accent parameter is accepted for symmetry with the
         forecast table; the NOW color comes from the stylesheet's
         condition selectors.
+
+        Old chips are detached before they are scheduled for deletion.
+        deleteLater() alone is not enough: the widget stays a live
+        child of the scroll area and keeps painting at the same
+        position until the event loop delivers the deferred delete, so
+        a translucent chip stacks another layer of itself on every
+        rebuild. The row visibly washed out to white after a few
+        searches. setParent(None) stops the painting at once and
+        deleteLater() still frees the object.
         """
 
         while self.chip_row.count() > 1:
             item = self.chip_row.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+            widget = item.widget()
+
+            if widget is not None:
+                widget.setParent(None)
+                widget.deleteLater()
 
         for index, chip in enumerate(hourly[:MAX_CHIPS]):
             widget = HourChip()

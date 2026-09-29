@@ -20,6 +20,8 @@ Project: Weather App Pro
 # ==========================================================
 
 import paths
+from pathlib import Path
+
 from PyQt5.QtCore import QUrl
 
 
@@ -102,7 +104,6 @@ class AnimationManager:
         return QUrl.fromLocalFile(
             str(cls.WEATHER_FOLDER / filename)
         ).toString()
-
     @classmethod
     def get_detail_animation(cls, detail_name: str) -> str:
         """
@@ -122,7 +123,15 @@ class AnimationManager:
     def animation_exists(cls, animation_path: str) -> bool:
         """
         Return True if the animation exists.
+
+        The getters hand back a file:// URL, so a URL is converted back
+        to a local path first. Passing the raw URL to Path would always
+        report False, which made this helper useless for the only
+        values the manager produces.
         """
+
+        if "://" in animation_path:
+            animation_path = QUrl(animation_path).toLocalFile()
 
         return Path(animation_path).exists()
 

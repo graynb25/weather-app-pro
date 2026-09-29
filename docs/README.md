@@ -53,6 +53,13 @@ item tracking into one place if keeping two in sync gets old.
   secret scan, the Inno Setup installer and portable zip, the About
   dialog and first-run key setup, and verification. Items tagged
   S/H/M/L.
+- [code-review-2026-09.md](code-review-2026-09.md)
+  A full pass over code, tests, and these plans at v1.0.3. The nine
+  defects that were fixed with their regression tests, dead code and
+  duplication found, the test suite gaps, twenty documentation
+  defects, and next steps in priority order. Read this before starting
+  new work: it is the only document that records what the current state
+  of the code actually is.
 
 ### Project reference (owner's docs)
 

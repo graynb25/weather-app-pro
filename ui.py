@@ -27,20 +27,20 @@ import os
 
 import paths
 
-from PyQt5.QtCore import Qt, QEvent, QTimer, QThread, pyqtSignal
+from PyQt5.QtCore import (Qt, QEvent, QEventLoop, QTimer, QThread, pyqtSignal)
 from PyQt5.QtGui import QFont, QIcon, QKeySequence, QPixmap, QPainter
 from PyQt5.QtSvg import QSvgRenderer
-from PyQt5.QtWidgets import (QWidget, QMainWindow, QLabel, QPushButton,
-    QLineEdit, QVBoxLayout, QGridLayout, QActionGroup, QAction,
+from PyQt5.QtWidgets import (QWidget, QMainWindow, QApplication, QLabel,
+    QPushButton, QLineEdit, QVBoxLayout, QGridLayout, QActionGroup, QAction,
     QHBoxLayout, QFrame, QLayout, QScrollArea, QCompleter, QMessageBox,
     QInputDialog, QShortcut)
 from PyQt5.QtCore import QStringListModel
 from geocoding import Geocoder
 
-from config import APP_VERSION, SUGGEST_DEBOUNCE_MS
+from config import APP_TITLE, APP_VERSION, SUGGEST_DEBOUNCE_MS
 from favorites import Favorites
 from weather_api import WeatherAPI
-from weather_worker import WeatherWorker, SuggestWorker
+from weather_worker import WeatherWorker, SuggestWorker, KeyWorker
 from geocoding import store_key, validate_key
 from cache import WeatherCache
 from errors import WeatherAppError
@@ -75,6 +75,9 @@ class WeatherApp(QMainWindow):
 
     # Carries the autocomplete query to the suggest worker.
     suggest_requested = pyqtSignal(str)
+
+    # Carries a pasted API key to the key worker for checking.
+    key_requested = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -135,6 +138,18 @@ class WeatherApp(QMainWindow):
         self.suggest_worker = SuggestWorker(Geocoder())
         self.suggest_worker.moveToThread(self.suggest_thread)
 
+        # API key checking: the worker exists from the start so the
+        # signal can be connected, but its thread is only started when
+        # the key dialog is actually opened.
+        self.key_thread = QThread()
+        self.key_worker = KeyWorker(validate_key)
+        self.key_worker.moveToThread(self.key_thread)
+
+        self._key_dialog_message = ""
+        self._key_dialog_busy = False
+        self._key_dialog_done = False
+        self._key_loop = None
+
         self.suggest_timer = QTimer()
         self.suggest_timer.setSingleShot(True)
 
@@ -166,7 +181,7 @@ class WeatherApp(QMainWindow):
             x, y, width, height = saved
 
             self.resize(width, height)
-            self.move(x, y)
+            self.move(*self.onscreen_position(x, y, width, height))
             self._window_size_fitted = True
             self._geometry_restored = True
 
@@ -463,7 +478,7 @@ class WeatherApp(QMainWindow):
 
         help_menu = menu_bar.addMenu("Help")
 
-        self.about_action = QAction("&About Weather App Pro", self)
+        self.about_action = QAction(f"&About {APP_TITLE}", self)
         self.about_action.setShortcut("F1")
         help_menu.addAction(self.about_action)
 
@@ -565,12 +580,14 @@ class WeatherApp(QMainWindow):
         style.polish(self)
 
         # Keep the range bars on the active accent, even when the
-        # condition was pinned from the menu after a search.
+        # condition was pinned from the menu after a search. The
+        # current units must be passed too, otherwise the table
+        # silently falls back to Fahrenheit for a metric user.
         self._forecast_accent = ConditionTheme.accent(condition)
 
         if self._last_forecast is not None:
             self.forecast_table.update_forecast(
-                self._last_forecast, self._forecast_accent
+                self._last_forecast, self._forecast_accent, self.units
             )
 
         if self._last_hourly is not None:
@@ -751,6 +768,10 @@ class WeatherApp(QMainWindow):
         self.suggest_requested.connect(self.suggest_worker.suggest)
         self.suggest_worker.suggestions_ready.connect(self.on_suggestions)
         self.suggest_worker.suggest_failed.connect(self.on_suggest_failed)
+
+        # The API key check must never run on the GUI thread.
+        self.key_worker.key_checked.connect(self.on_key_checked)
+        self.key_requested.connect(self.key_worker.check)
 
         self.completer.activated.connect(self.on_suggestion_activated)
 
@@ -1222,7 +1243,7 @@ class WeatherApp(QMainWindow):
         """
 
         box = QMessageBox(self)
-        box.setWindowTitle("About Weather App Pro")
+        box.setWindowTitle(f"About {APP_TITLE}")
         box.setTextFormat(Qt.RichText)
         box.setText(self._about_text())
 
@@ -1240,7 +1261,7 @@ class WeatherApp(QMainWindow):
         """
 
         return (
-            f"<h3>Weather App Pro {APP_VERSION}</h3>"
+            f"<h3>{APP_TITLE} {APP_VERSION}</h3>"
             "<p>A desktop weather console powered by OpenWeatherMap.</p>"
             "<p>Weather data provided by "
             '<a href="https://openweathermap.org/">'
@@ -1269,13 +1290,18 @@ class WeatherApp(QMainWindow):
         Runs on first start and any time from the Settings menu; the
         user can skip it and the app keeps warning until a working key
         exists.
+
+        The check runs on the key worker thread, so the window stays
+        responsive while the service answers. The dialog flow is a
+        small state machine for that reason: ask, check, then either
+        store the key or offer a retry.
         """
 
         first_run = not self.weather_api.api_key_exists()
 
         if first_run:
             message = (
-                "Weather App Pro needs a free OpenWeatherMap API key.\n"
+                f"{APP_TITLE} needs a free OpenWeatherMap API key.\n"
                 "Create one at openweathermap.org/appid and paste it below.\n"
                 "(New keys can take up to two hours to activate.)"
             )
@@ -1285,44 +1311,140 @@ class WeatherApp(QMainWindow):
                 "It replaces the key saved in the data folder."
             )
 
-        while True:
-            key, accepted = QInputDialog.getText(
-                self,
-                "Weather App Pro: API key",
-                message,
-            )
+        self._key_dialog_message = message
+        self._key_dialog_busy = False
+        self._key_dialog_done = False
+        self._key_loop = None
 
-            key = key.strip()
+        self.start_key_thread()
 
-            if not accepted or not key:
-                return
+        # A nested event loop keeps this call alive while the worker
+        # thread answers. Without it the thread would be shut down
+        # before the check ever ran.
+        loop = QEventLoop()
+        self._key_loop = loop
 
-            if validate_key(key):
-                store_key(key)
-                os.environ["OPENWEATHER_API_KEY"] = key
-                self.weather_api.api_key = key
+        try:
+            self.ask_for_key()
 
-                QMessageBox.information(
-                    self,
-                    "Weather App Pro",
-                    "API key saved. You are ready to search.",
-                )
-                return
+            if not self._key_dialog_done:
+                loop.exec()
+        finally:
+            self._key_loop = None
+            self.stop_key_thread()
 
-            message = (
-                "That key was rejected.\n"
-                "Check it on openweathermap.org (new keys can take up to two\n"
-                "hours to activate), then try again."
-            )
+    def start_key_thread(self) -> None:
+        """
+        Start the key worker thread, or reuse a running one.
+        """
 
-            retry = QMessageBox.question(
-                self,
-                "Weather App Pro",
-                message + "\n\nTry again?",
-            )
+        if not self.key_thread.isRunning():
+            self.key_thread.start()
 
-            if retry != QMessageBox.Yes:
-                return
+    def ask_for_key(self) -> None:
+        """
+        Show the key prompt, then check whatever came back.
+
+        Called on the GUI thread. A check already in flight is ignored
+        so a stray signal cannot open a second prompt.
+        """
+
+        if self._key_dialog_busy:
+            return
+
+        key, accepted = QInputDialog.getText(
+            self,
+            f"{APP_TITLE}: API key",
+            self._key_dialog_message,
+        )
+
+        key = key.strip()
+
+        if not accepted or not key:
+            self.finish_key_setup()
+            return
+
+        self._key_dialog_busy = True
+        self.setCursor(Qt.WaitCursor)
+        self.key_requested.emit(key)
+
+    def on_key_checked(self, key: str, accepted: bool) -> None:
+        """
+        Handle the answer from the key worker thread.
+
+        An answer that arrives after the dialog flow finished is
+        dropped.
+        """
+
+        if self._key_loop is None:
+            return
+
+        self._key_dialog_busy = False
+        self.unsetCursor()
+
+        if accepted:
+            self.accept_key(key)
+            self.finish_key_setup()
+            return
+
+        self._key_dialog_message = (
+            "That key was rejected.\n"
+            "Check it on openweathermap.org (new keys can take up to two\n"
+            "hours to activate), then try again."
+        )
+
+        retry = QMessageBox.question(
+            self,
+            APP_TITLE,
+            self._key_dialog_message + "\n\nTry again?",
+        )
+
+        if retry == QMessageBox.Yes:
+            self.ask_for_key()
+        else:
+            self.finish_key_setup()
+
+    def finish_key_setup(self) -> None:
+        """
+        Leave the key dialog flow for good.
+        """
+
+        self._key_dialog_done = True
+
+        loop = self._key_loop
+
+        if loop is not None:
+            loop.quit()
+
+    def accept_key(self, key: str) -> None:
+        """
+        Store a key the service accepted and make it live.
+        """
+
+        store_key(key)
+        os.environ["OPENWEATHER_API_KEY"] = key
+        self.weather_api.api_key = key
+
+        QMessageBox.information(
+            self,
+            APP_TITLE,
+            "API key saved. You are ready to search.",
+        )
+
+    def stop_key_thread(self) -> None:
+        """
+        Shut the key worker thread down, if it is running.
+        """
+
+        thread = getattr(self, "key_thread", None)
+
+        if thread is None:
+            return
+
+        thread.quit()
+        thread.wait(2000)
+
+        self.unsetCursor()
 
     # ---------------------------------------------------------
     # Shutdown
@@ -1359,6 +1481,9 @@ class WeatherApp(QMainWindow):
         self.suggest_thread.quit()
         self.suggest_thread.wait(2000)
 
+        self.key_thread.quit()
+        self.key_thread.wait(2000)
+
         event.accept()
 
     # ---------------------------------------------------------
@@ -1370,7 +1495,7 @@ class WeatherApp(QMainWindow):
         Apply the glass console stylesheet and window defaults.
         """
 
-        self.setWindowTitle(f"Weather App Pro {APP_VERSION}")
+        self.setWindowTitle(f"{APP_TITLE} {APP_VERSION}")
         self.setWindowIcon(self._make_app_icon())
         self.setMinimumSize(820, 620)
 
@@ -1430,6 +1555,47 @@ class WeatherApp(QMainWindow):
         self._window_size_fitted = True
 
         self._fit_height(grow_only=False)
+
+    def onscreen_position(self, x: int, y: int, width: int,
+        height: int) -> tuple[int, int]:
+        """
+        Nudge a restored window position back onto a real screen.
+
+        A window saved while a second monitor was attached comes back
+        off screen once that monitor is gone. The stored position is
+        kept when it still overlaps some screen by a usable amount, and
+        pulled back otherwise, so an ordinary multi monitor layout is
+        left exactly as the owner arranged it.
+        """
+
+        screens = QApplication.screens()
+
+        if not screens:
+            return x, y
+
+        for screen in screens:
+            available = screen.availableGeometry()
+
+            overlap_x = min(x + width, available.right()) - max(
+                x, available.left()
+            )
+            overlap_y = min(y + height, available.bottom()) - max(
+                y, available.top()
+            )
+
+            if overlap_x > 0 and overlap_y > 0:
+                return x, y
+
+        # Nothing visible left: center on the primary screen.
+        available = QApplication.primaryScreen().availableGeometry()
+
+        centered_x = available.x() + (available.width() - width) // 2
+        centered_y = available.y() + (available.height() - height) // 2
+
+        return (
+            max(available.left(), centered_x),
+            max(available.top(), centered_y),
+        )
 
     def _fit_height(self, grow_only: bool = True) -> None:
         """

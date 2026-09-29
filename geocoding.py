@@ -235,7 +235,19 @@ def store_key(api_key: str) -> None:
 
     weather_api loads this file at startup. The key never goes
     anywhere else (see PRIVACY.md).
+
+    Raises:
+        ValueError: If the key holds a control character. The file is
+            dotenv format, so a value carrying a newline would be read
+            back as extra variables on the next start. Only control
+            characters are refused here; whether the key works at all
+            is decided by validate_key.
     """
+
+    if any(
+        (ord(ch) < 32 or ord(ch) == 127) for ch in api_key
+    ):
+        raise ValueError("An API key holds no control characters.")
 
     key_file = paths.key_file()
 

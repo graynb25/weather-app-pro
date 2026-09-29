@@ -22,9 +22,12 @@ def redact_url(url: str) -> str:
 
     Anything derived from a request URL goes through this before it can
     reach a log file or an error message, so the API key never leaks.
+    The match is case-insensitive because the function is also handed
+    text this app did not build, such as an exception message relayed
+    from a proxy that rewrote the parameter name.
     """
 
-    return re.sub(r"([?&]appid=)[^&]*", r"\1***", url)
+    return re.sub(r"([?&]appid=)[^&]*", r"\1***", url, flags=re.IGNORECASE)
 
 
 # ---------------------------------------------------------

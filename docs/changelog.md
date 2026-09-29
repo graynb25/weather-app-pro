@@ -264,3 +264,85 @@
 - Added CONTRIBUTING.md: contributor setup, ground rules, test and PR
   expectations. It is the public counterpart of the local agent.md.
 - Post-release watch.
+- Added docs/code-review-2026-09.md: a full pass over the code, the
+  test suite, and the plans at v1.0.3, with next steps in priority
+  order.
+- Fixed the hourly strip washing out to a flat white band. Rebuilding
+  the chips scheduled the old ones for deletion with deleteLater()
+  without detaching them, so they kept painting and each rebuild stacked
+  another translucent white layer. After three searches the row reached
+  Qt's default window color and the hour labels and temperatures became
+  unreadable. Old chips are now detached before they are deleted.
+- Fixed the forecast table silently reverting to Fahrenheit when a
+  condition was chosen from the menu, because the re-render did not
+  pass the current units. A metric user saw the table flip units while
+  the hero and the hourly strip stayed in Celsius.
+- Fixed the 5-day forecast being bucketed into calendar days using the
+  timezone of the computer running the app rather than the city's. The
+  weekday labels, the day each row covered, and which entry counted as
+  midday all changed with the owner's timezone, so the same city gave
+  different forecasts in different zones. Every conversion now uses the
+  offset from the payload's city block.
+- Fixed a negative Retry-After header crashing a search with the generic
+  "something went wrong" message. time.sleep raises on a negative wait,
+  and the header handling sat outside the try that wraps the request.
+  A negative value now reads as no header at all, as any non-numeric
+  value already did.
+- Fixed the API key dialog freezing the window for up to ten seconds.
+  Validating a key is one HTTP request with a ten second timeout, and it
+  ran on the GUI thread. It now runs on its own worker thread behind a
+  KeyWorker, and the dialog became a small state machine. The wording of
+  every dialog is unchanged.
+- Fixed AnimationManager.animation_exists raising NameError, and fixed
+  it being unable to return True for the file:// URLs its own getters
+  produce. The missing Path import had been masking the second problem.
+- Fixed store_key accepting a key containing a control character, which
+  in the dotenv file would have been read back on the next start as an
+  extra environment variable. Only control characters are refused;
+  whether a key works is still decided by validate_key.
+- Fixed redact_url only matching a lowercase appid, so text relayed
+  from elsewhere with ?APPID= passed through untouched. The function is
+  handed text this app did not build, so the match is now case
+  insensitive.
+- Replaced the nine hardcoded copies of the app title with
+  config.APP_TITLE, which existed and was never used.
+- Stopped settings logging "Ignored invalid stored value for window" on
+  every launch. The window default is null, so a key still holding its
+  default is no longer reported as an invalid value. A genuinely bad
+  window is still reported.
+- A window saved while a second monitor was attached came back off
+  screen once that monitor was gone. A restored position is now kept
+  when it still overlaps a real screen, so a normal multi monitor layout
+  is left exactly as arranged, and pulled back onto the primary screen
+  when nothing is visible.
+- Fixed a missing Path import in a logging_setup.py annotation. It only
+  worked because Python 3.14 defers annotation evaluation.
+- The forecast now trims to five days explicitly instead of relying on
+  the row loop dropping the sixth, which is what happened for most
+  hours of the day because 40 three-hour entries straddle six calendar
+  days.
+- Fixed two assets that were missing: resources/icons/details had no
+  not-available.svg, so the detail icon fallback pointed at nothing and
+  now uses the glyph that is on disk; and
+  resources/animations/details had no wind.json and no
+  not-available.json, so two detail animation mappings resolved to
+  nothing. Both files were added.
+- Hardened LottieWidget: the animation path is now encoded as a JSON
+  string literal instead of being interpolated into JavaScript, and the
+  player HTML is resolved through paths.py so a frozen build can find
+  it.
+- Added 72 tests, from 153 to 225, still under two seconds. New
+  coverage: the city-timezone forecast, both sides of the
+  Retry-After cap, negative and malformed Retry-After, a server error
+  that recovers, timeouts being retried, an HTTPError carrying a real
+  key in its text, case-insensitive redaction, the utils conversions
+  that previously had no direct test, chip detaching on rebuild, units
+  surviving a condition change, the key check running off the GUI
+  thread, a rejected key not looping, cancelling storing nothing, the
+  default window not being logged as invalid, an off-screen window
+  being brought back, and a new tests/test_managers.py that asserts
+  every mapped asset exists on disk and pins the stylesheet's condition
+  accents to the palette table.
+- Fixed test_get_forecast_picks_the_entry_closest_to_midday, which built
+  its timestamps in machine-local time while declaring a city an hour
+  ahead, so it passed by agreeing with the timezone bug above.

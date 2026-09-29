@@ -68,6 +68,44 @@ class WeatherWorker(QObject):
         self.search_done.emit(weather, forecast, hourly)
 
 
+class KeyWorker(QObject):
+    """
+    Validates a pasted API key off the GUI thread.
+
+    Checking a key costs one HTTP request with a ten second timeout.
+    Doing that on the GUI thread froze the window for the whole wait,
+    so the call lives here and the result comes back as a signal.
+    """
+
+    # The key that was checked, and whether the service accepted it.
+    key_checked = pyqtSignal(str, bool)
+
+    def __init__(self, validate):
+        super().__init__()
+
+        # The geocoding module's validate_key function.
+        self.validate = validate
+
+    @pyqtSlot(str)
+    def check(self, key: str) -> None:
+        """
+        Report whether the service accepts this key.
+
+        Every failure counts as not accepted: the dialog then says the
+        key was rejected and offers a retry, which is the wording that
+        already existed for a failed check.
+        """
+
+        try:
+            accepted = bool(self.validate(key))
+        except Exception:
+            logger.exception("API key check raised unexpectedly.")
+
+            accepted = False
+
+        self.key_checked.emit(key, accepted)
+
+
 class SuggestWorker(QObject):
     """
     Executes autocomplete queries on its own thread.

@@ -12,6 +12,7 @@ through the real worker thread with requests_mock underneath.
 from datetime import datetime, timedelta
 
 import pytest
+from PyQt5.QtWidgets import QApplication
 
 from conftest import VALID_CURRENT_PAYLOAD, VALID_FORECAST_PAYLOAD
 
@@ -486,7 +487,6 @@ def test_first_run_key_setup_saves_a_valid_key(qtbot, monkeypatch):
     """
 
     import ui as ui_module
-    from geocoding import GeoResult  # noqa: F401  (import must not break)
 
     window = WeatherApp()
     qtbot.addWidget(window)
@@ -499,7 +499,11 @@ def test_first_run_key_setup_saves_a_valid_key(qtbot, monkeypatch):
             return ("fresh-key-123", True)
 
     monkeypatch.setattr(ui_module, "QInputDialog", FakeInput)
-    monkeypatch.setattr(ui_module, "validate_key", lambda key: True)
+
+    # The key worker holds validate_key as its injected dependency, so
+    # that is the seam to replace. Patching the ui module attribute
+    # would leave the worker calling the real function.
+    monkeypatch.setattr(window.key_worker, "validate", lambda key: True)
 
     saved = []
     monkeypatch.setattr(ui_module, "store_key", lambda key: saved.append(key))
@@ -527,6 +531,192 @@ def test_first_run_key_setup_saves_a_valid_key(qtbot, monkeypatch):
     assert window.weather_api.api_key == "fresh-key-123"
 
 
+def test_the_key_check_does_not_run_on_the_gui_thread(qtbot, monkeypatch):
+    """
+    Checking a key costs one HTTP request with a ten second timeout.
+    It must never run on the thread that owns the widgets.
+    """
+
+    import ui as ui_module
+    from PyQt5.QtCore import QThread
+
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    window.weather_api.api_key = None
+
+    class FakeInput:
+        @staticmethod
+        def getText(*args, **kwargs):
+            return ("threaded-key", True)
+
+    monkeypatch.setattr(ui_module, "QInputDialog", FakeInput)
+
+    gui_thread = QThread.currentThread()
+    seen = []
+
+    def record(key):
+        seen.append(QThread.currentThread())
+        return True
+
+    monkeypatch.setattr(window.key_worker, "validate", record)
+
+    saved = []
+    monkeypatch.setattr(ui_module, "store_key", lambda key: saved.append(key))
+
+    class FakeMessageBox:
+        Yes = 16384
+        No = 65536
+
+        @staticmethod
+        def information(*args, **kwargs):
+            pass
+
+        @staticmethod
+        def question(*args, **kwargs):
+            return FakeMessageBox.No
+
+    monkeypatch.setattr(ui_module, "QMessageBox", FakeMessageBox)
+
+    window.offer_key_setup()
+
+    assert saved == ["threaded-key"]
+    assert seen, "the key was never checked"
+    assert seen[0] is not gui_thread
+
+
+def test_a_rejected_key_offers_a_retry_then_gives_up(qtbot, monkeypatch):
+    """
+    A key the service refuses must not be stored, and answering No to
+    the retry question must end the flow instead of looping.
+    """
+
+    import ui as ui_module
+
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    window.weather_api.api_key = None
+
+    prompts = []
+
+    class FakeInput:
+        @staticmethod
+        def getText(*args, **kwargs):
+            prompts.append(kwargs.get("label"))
+            return ("bad-key", True)
+
+    monkeypatch.setattr(ui_module, "QInputDialog", FakeInput)
+    monkeypatch.setattr(window.key_worker, "validate", lambda key: False)
+
+    saved = []
+    monkeypatch.setattr(ui_module, "store_key", lambda key: saved.append(key))
+
+    class FakeMessageBox:
+        Yes = 16384
+        No = 65536
+
+        @staticmethod
+        def information(*args, **kwargs):
+            raise AssertionError("a rejected key must not be confirmed")
+
+        @staticmethod
+        def question(*args, **kwargs):
+            return FakeMessageBox.No
+
+    monkeypatch.setattr(ui_module, "QMessageBox", FakeMessageBox)
+
+    window.offer_key_setup()
+
+    assert saved == []
+    assert window.weather_api.api_key is None
+    assert len(prompts) == 1, "the prompt repeated after the user said no"
+
+
+def test_cancelling_the_key_dialog_stores_nothing(qtbot, monkeypatch):
+    """
+    Backing out of the first-run prompt must leave the app keyless
+    rather than storing an empty key.
+    """
+
+    import ui as ui_module
+
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    window.weather_api.api_key = None
+
+    class FakeInput:
+        @staticmethod
+        def getText(*args, **kwargs):
+            return ("", False)
+
+    monkeypatch.setattr(ui_module, "QInputDialog", FakeInput)
+
+    checked = []
+    monkeypatch.setattr(
+        window.key_worker, "validate", lambda key: checked.append(key) or True
+    )
+
+    saved = []
+    monkeypatch.setattr(ui_module, "store_key", lambda key: saved.append(key))
+
+    window.offer_key_setup()
+
+    assert saved == []
+    assert checked == []
+    assert window.weather_api.api_key is None
+
+
+def test_a_condition_change_keeps_the_selected_units(qtbot):
+    """
+    Picking a condition from the menu re-renders the forecast table.
+    The current units have to be passed along, or the table quietly
+    falls back to Fahrenheit for someone who chose Celsius.
+    """
+
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    window.set_units("metric")
+    window.display_weather(sample_weather())
+    window.display_forecast(sample_forecast())
+    window.display_hourly(sample_hourly())
+
+    row = window.forecast_table.rows[0]
+
+    celsius = row.values_label.text()
+
+    assert celsius == "21°  /  12°"
+
+    window.set_condition_mode("night")
+
+    assert window.units == "metric"
+    assert row.values_label.text() == "21°  /  12°"
+
+
+def test_a_restored_window_off_every_screen_is_brought_back(qtbot):
+    """
+    A window saved while a second monitor was attached comes back
+    off screen once that monitor is gone. The stored position must
+    not be trusted blindly.
+    """
+
+    window = WeatherApp()
+    qtbot.addWidget(window)
+
+    available = QApplication.primaryScreen().availableGeometry()
+
+    # A position on a real screen is left exactly as the owner set it.
+    assert window.onscreen_position(0, 0, 400, 400) == (0, 0)
+
+    far_away = window.onscreen_position(90_000, 90_000, 400, 400)
+
+    assert far_away != (90_000, 90_000)
+    assert far_away[0] >= available.left()
+    assert far_away[1] >= available.top()
+
+
 def test_forecast_table_fills_rows(qtbot):
     table = ForecastTable()
     qtbot.addWidget(table)
@@ -538,6 +728,18 @@ def test_forecast_table_fills_rows(qtbot):
     assert row.day_label.text() == "MON"
     assert "70" in row.values_label.text()
     assert "54" in row.values_label.text()
+
+
+def test_forecast_table_ignores_an_empty_forecast(qtbot):
+    table = ForecastTable()
+    qtbot.addWidget(table)
+
+    table.update_forecast(sample_forecast(), "#6fb3ff")
+    before = table.rows[0].values_label.text()
+
+    table.update_forecast([], "#6fb3ff")
+
+    assert table.rows[0].values_label.text() == before
 
 
 def test_sky_widget_switches_conditions(qtbot):

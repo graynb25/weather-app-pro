@@ -57,3 +57,41 @@ def test_strip_ignores_empty_updates(qtbot):
     strip.update_hourly([])
 
     assert strip.chip_row.count() == 1  # just the stretch
+
+
+def test_replaced_chips_stop_painting_immediately(qtbot):
+    """
+    Old chips must be detached, not only scheduled for deletion.
+
+    deleteLater() leaves the widget a live child of the scroll area
+    still painting at the same position until the event loop delivers
+    the deferred delete. Because each chip is a translucent white over
+    a dark panel, every rebuild stacked another layer and the strip
+    washed out to white after a few searches. Detaching is what stops
+    the stacking.
+    """
+
+    strip = HourlyStrip()
+    qtbot.addWidget(strip)
+
+    strip.update_hourly(sample_hourly())
+
+    old_chips = [
+        strip.chip_row.itemAt(index).widget()
+        for index in range(strip.chip_row.count() - 1)
+    ]
+
+    assert old_chips
+
+    strip.update_hourly(sample_hourly())
+
+    # No old chip may still be parented into the row, which is what
+    # keeps it from painting on top of the new ones.
+    still_attached = [
+        chip for chip in old_chips if chip.parent() is not None
+    ]
+
+    assert still_attached == []
+
+    # The row holds exactly the new set plus the trailing stretch.
+    assert strip.chip_row.count() == len(sample_hourly()) + 1

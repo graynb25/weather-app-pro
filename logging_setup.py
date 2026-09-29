@@ -20,6 +20,7 @@ logged as-is (it can embed the request URL, which contains the key).
 
 import logging
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 import paths
 

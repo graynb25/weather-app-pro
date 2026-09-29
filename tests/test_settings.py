@@ -102,3 +102,39 @@ def test_save_leaves_no_temp_file(tmp_path):
     names = sorted(item.name for item in tmp_path.iterdir())
 
     assert names == ["settings.json"]
+
+
+def test_a_still_default_window_is_not_reported_as_invalid(tmp_path,
+    weather_log, caplog):
+    """
+    The window default is null, so an untouched save writes null. That
+    must not be logged as a rejected value on every single launch.
+    """
+
+    path = tmp_path / "settings.json"
+
+    settings = Settings(path)
+    settings.set("units", "metric")
+
+    written = json.loads(path.read_text(encoding="utf-8"))
+
+    assert written["window"] is None
+
+    with caplog.at_level("WARNING", logger="weather"):
+        reloaded = Settings(path)
+
+    assert reloaded.get("window") is None
+    assert reloaded.get("units") == "metric"
+    assert weather_log.formatted == []
+
+
+def test_a_genuinely_bad_window_is_still_reported(tmp_path, weather_log):
+    path = tmp_path / "settings.json"
+    path.write_text('{"window": [0, 0, 10, 10]}', encoding="utf-8")
+
+    settings = Settings(path)
+
+    assert settings.get("window") is None
+    assert any(
+        "window" in line for line in weather_log.formatted
+    )
