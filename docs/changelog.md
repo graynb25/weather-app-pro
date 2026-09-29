@@ -388,3 +388,7 @@ v1.0.4, update to this.
   the console design are byte for byte the same, verified by capturing
   all ten states before and after and comparing them pixel by pixel.
 - Version 1.0.5.
+- Published v1.0.5: the installer and the portable zip, tagged on main,
+  with the SHA-256 values in the release notes, which match the digests
+  GitHub computed for the uploaded assets. The v1.0.4 release page now
+  opens with a pointer to 1.0.5.
