@@ -59,18 +59,30 @@ the chip row, one search per repolish:
 white, so the whole strip became unreadable. Picking any condition from
 the menu, or searching twice, was enough to trigger it.
 
-The fix detaches before deleting:
+The fix hides before deleting:
 
 ```python
 if widget is not None:
-    widget.setParent(None)
+    widget.hide()
     widget.deleteLater()
 ```
 
-`setParent(None)` stops the painting immediately; `deleteLater()` still
-frees the object. The chip row now holds `#343e4d` across every
-repolish, which is the correct first-render value, so nothing about the
-look changed.
+`hide()` stops the painting immediately while leaving the chip a child
+widget, and `deleteLater()` still frees the object. The chip row now
+holds `#343e4d` across every repolish, which is the correct first-render
+value, so nothing about the look changed.
+
+**A trap worth recording.** The obvious way to stop a widget painting is
+`setParent(None)`, and that is what the first attempt used. It is wrong:
+a widget reparented to null becomes a **top-level window**, and because
+the chip had never been explicitly hidden it stayed visible as a small
+white box sitting over the strip. It appeared on every search and every
+unit change, because those are the only two actions that rebuild the
+hourly row, and it accumulated: 16, then 32, then 48 stray windows as
+the user kept searching. It looked like a pop-up that came and went
+rather than a widget leak, which is why it was not spotted by the test
+suite. The regression test for it asserts that no chip ever becomes a
+window, and it fails if the `setParent` line comes back.
 
 `widgets/favorites_bar.py` uses the same `deleteLater()` pattern and was
 checked for the same defect. It does not have it: the city chips are

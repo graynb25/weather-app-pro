@@ -129,14 +129,20 @@ class HourlyStrip(QFrame):
         forecast table; the NOW color comes from the stylesheet's
         condition selectors.
 
-        Old chips are detached before they are scheduled for deletion.
+        Old chips are hidden before they are scheduled for deletion.
         deleteLater() alone is not enough: the widget stays a live
         child of the scroll area and keeps painting at the same
         position until the event loop delivers the deferred delete, so
         a translucent chip stacks another layer of itself on every
         rebuild. The row visibly washed out to white after a few
-        searches. setParent(None) stops the painting at once and
-        deleteLater() still frees the object.
+        searches. hide() stops the painting at once while leaving the
+        chip a child widget, and deleteLater() still frees the object.
+
+        Do not use setParent(None) here. A widget reparented to null
+        becomes a top-level window, and because the chip was never
+        explicitly hidden it stays visible as a stray white box sitting
+        over the strip. That happened on every search and every unit
+        change, which are the only actions that rebuild this row.
         """
 
         while self.chip_row.count() > 1:
@@ -144,7 +150,7 @@ class HourlyStrip(QFrame):
             widget = item.widget()
 
             if widget is not None:
-                widget.setParent(None)
+                widget.hide()
                 widget.deleteLater()
 
         for index, chip in enumerate(hourly[:MAX_CHIPS]):

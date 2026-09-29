@@ -6,7 +6,9 @@ Tests for HourlyStrip in widgets/hourly_strip.py.
 """
 
 from weather_model import HourData
-from widgets.hourly_strip import HourlyStrip
+from widgets.hourly_strip import HourChip, HourlyStrip
+
+from PyQt5.QtWidgets import QApplication
 
 
 def sample_hourly() -> list:
@@ -61,14 +63,19 @@ def test_strip_ignores_empty_updates(qtbot):
 
 def test_replaced_chips_stop_painting_immediately(qtbot):
     """
-    Old chips must be detached, not only scheduled for deletion.
+    Old chips must stop painting before they are freed, without ever
+    becoming windows of their own.
 
-    deleteLater() leaves the widget a live child of the scroll area
-    still painting at the same position until the event loop delivers
-    the deferred delete. Because each chip is a translucent white over
-    a dark panel, every rebuild stacked another layer and the strip
-    washed out to white after a few searches. Detaching is what stops
-    the stacking.
+    deleteLater() leaves the widget drawing at its old position until
+    the event loop delivers the deferred delete, so each rebuild
+    stacked another translucent layer and the row washed out to white.
+    Hiding fixes that.
+
+    Reparenting to null would also stop the painting, but it turns the
+    chip into a top-level window that stays visible as a stray white
+    box over the strip, on every search and every unit change. Those
+    are the only actions that rebuild this row, which is why the
+    symptom looked like a pop-up that came and went.
     """
 
     strip = HourlyStrip()
@@ -85,13 +92,39 @@ def test_replaced_chips_stop_painting_immediately(qtbot):
 
     strip.update_hourly(sample_hourly())
 
-    # No old chip may still be parented into the row, which is what
-    # keeps it from painting on top of the new ones.
-    still_attached = [
-        chip for chip in old_chips if chip.parent() is not None
-    ]
-
-    assert still_attached == []
+    for chip in old_chips:
+        assert chip.isHidden(), "a replaced chip is still painting"
+        assert chip.parent() is not None, \
+            "a replaced chip was turned into a top-level window"
 
     # The row holds exactly the new set plus the trailing stretch.
     assert strip.chip_row.count() == len(sample_hourly()) + 1
+
+
+def test_rebuilding_never_turns_a_chip_into_a_window(qtbot):
+    """
+    The regression guard for the stray white box.
+
+    Reparenting a chip to null makes it a top-level window that stays
+    visible over the strip, on every search and every unit change. A
+    chip must never become a window, however many times the row is
+    rebuilt. Only the chips this strip created are checked, so the
+    assertion cannot be disturbed by other windows in the session.
+    """
+
+    strip = HourlyStrip()
+    qtbot.addWidget(strip)
+
+    seen = []
+
+    for _ in range(5):
+        strip.update_hourly(sample_hourly())
+        # Hidden chips stay parented until their deferred delete runs,
+        # so this grows on purpose: it collects every chip ever made.
+        seen.extend(strip.findChildren(HourChip))
+        QApplication.processEvents()
+
+    assert seen
+
+    for chip in seen:
+        assert chip.isWindow() is False, "a chip became a top-level window"

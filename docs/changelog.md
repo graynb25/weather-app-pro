@@ -275,10 +275,16 @@ Full findings and next steps in docs/code-review-2026-09.md.
   order.
 - Fixed the hourly strip washing out to a flat white band. Rebuilding
   the chips scheduled the old ones for deletion with deleteLater()
-  without detaching them, so they kept painting and each rebuild stacked
+  without hiding them, so they kept painting and each rebuild stacked
   another translucent white layer. After three searches the row reached
   Qt's default window color and the hour labels and temperatures became
-  unreadable. Old chips are now detached before they are deleted.
+  unreadable. Old chips are now hidden before they are deleted.
+- Fixed a small stray white box appearing over the hourly strip on
+  every search and every unit change. The first attempt at the fix
+  above reparented each replaced chip to null, which turns it into a
+  top-level window that stayed visible where the strip sits, and the
+  boxes accumulated one set per search. Hiding the chip instead stops
+  the painting without ever making it a window.
 - Fixed the forecast table silently reverting to Fahrenheit when a
   condition was chosen from the menu, because the re-render did not
   pass the current units. A metric user saw the table flip units while
@@ -342,7 +348,8 @@ Full findings and next steps in docs/code-review-2026-09.md.
   Retry-After cap, negative and malformed Retry-After, a server error
   that recovers, timeouts being retried, an HTTPError carrying a real
   key in its text, case-insensitive redaction, the utils conversions
-  that previously had no direct test, chip detaching on rebuild, units
+  that previously had no direct test, chips stopping paint on rebuild
+  and never becoming windows, units
   surviving a condition change, the key check running off the GUI
   thread, a rejected key not looping, cancelling storing nothing, the
   default window not being logged as invalid, an off-screen window
