@@ -33,6 +33,8 @@ Detail lives in docs/code-review-2026-09.md. Closed items from that
 pass; the open work is in the review's next-steps section.
 
 - [x] Hourly strip no longer washes out to white on rebuild
+- [x] Replaced hour chips are hidden, never detached into windows (the
+      regression v1.0.4 shipped, fixed in v1.0.5)
 - [x] Forecast table keeps the selected units across a theme change
 - [x] Forecast days and midday use the city timezone, not the owner's
 - [x] Negative and malformed Retry-After no longer escape as a crash

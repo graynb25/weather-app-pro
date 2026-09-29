@@ -279,12 +279,11 @@ Full findings and next steps in docs/code-review-2026-09.md.
   another translucent white layer. After three searches the row reached
   Qt's default window color and the hour labels and temperatures became
   unreadable. Old chips are now hidden before they are deleted.
-- Fixed a small stray white box appearing over the hourly strip on
-  every search and every unit change. The first attempt at the fix
-  above reparented each replaced chip to null, which turns it into a
-  top-level window that stayed visible where the strip sits, and the
-  boxes accumulated one set per search. Hiding the chip instead stops
-  the painting without ever making it a window.
+- This release introduced a regression: the fix above was first written
+  by reparenting each replaced chip to null, which turns a chip into a
+  top-level window, and a small white box then appeared over the hourly
+  strip on every search and every unit change. Fixed in v1.0.5, so
+  anyone on v1.0.4 should update.
 - Fixed the forecast table silently reverting to Fahrenheit when a
   condition was chosen from the menu, because the re-render did not
   pass the current units. A metric user saw the table flip units while
@@ -363,3 +362,29 @@ Full findings and next steps in docs/code-review-2026-09.md.
 - Published v1.0.4: the installer and the portable zip, tagged on main
   with the SHA-256 values in the release notes, which match the digests
   GitHub computed for the uploaded assets.
+
+---
+
+## v1.0.5
+
+A one-line fix for the regression v1.0.4 shipped. If you are on
+v1.0.4, update to this.
+
+- Fixed a small stray white box appearing over the hourly strip. The
+  v1.0.4 fix for the strip washing out to white reparented each
+  replaced chip to null, which makes a chip into a top-level window
+  that stays visible where the strip sits. The boxes accumulated, 16
+  after one rebuild and 48 after three. Only two actions rebuild that
+  row, pressing Enter to search and switching units, so it looked like
+  a pop-up that came and went rather than a widget leak. Hiding the
+  chip stops the painting just as well and never makes it a window, so
+  the original washout fix is kept and the box is gone.
+- The test that shipped with the first fix asserted the replaced chips
+  became parentless, which is the bug rather than the intent. It now
+  asserts they stop painting while staying parented, plus a new guard
+  that no chip ever becomes a window. The new guard was checked by
+  putting the old line back, and it fails.
+- Nothing else changed. The interface, the six condition themes, and
+  the console design are byte for byte the same, verified by capturing
+  all ten states before and after and comparing them pixel by pixel.
+- Version 1.0.5.
