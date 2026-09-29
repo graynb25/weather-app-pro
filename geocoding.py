@@ -23,8 +23,7 @@ import requests
 
 from config import GEO_URL, GEO_LIMIT, REQUEST_TIMEOUT
 from errors import (InvalidCityError, ApiKeyMissingError, ApiKeyInvalidError,
-    CityNotFoundError, RateLimitError, ApiServiceError, NetworkError,
-    ApiDataError)
+    RateLimitError, ApiServiceError, NetworkError, ApiDataError)
 from utils import redact_url
 import paths
 

@@ -11,7 +11,6 @@ log. Also covers status mapping, input validation, payload validation,
 and the success paths.
 """
 
-import logging
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from urllib.parse import parse_qsl, urlparse
@@ -28,7 +27,6 @@ from config import MAX_CITY_LENGTH
 from errors import (WeatherAppError, InvalidCityError, ApiKeyMissingError,
     ApiKeyInvalidError, CityNotFoundError, RateLimitError, ApiServiceError,
     NetworkError, ApiDataError)
-from weather_api import WeatherAPI
 
 
 # ---------------------------------------------------------

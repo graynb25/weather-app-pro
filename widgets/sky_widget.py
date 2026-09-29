@@ -21,7 +21,7 @@ Design source: instance/preview/05-glass-console.html (local preview).
 import math
 import random
 
-from PyQt5.QtCore import QPoint, QPointF, QRectF, QTimer, Qt
+from PyQt5.QtCore import QPointF, QRectF, QTimer, Qt
 from PyQt5.QtGui import QColor, QLinearGradient, QPainter, QPen, QRadialGradient
 from PyQt5.QtWidgets import QWidget
 

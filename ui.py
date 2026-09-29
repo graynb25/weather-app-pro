@@ -32,7 +32,7 @@ from PyQt5.QtGui import QFont, QIcon, QKeySequence, QPixmap, QPainter
 from PyQt5.QtSvg import QSvgRenderer
 from PyQt5.QtWidgets import (QWidget, QMainWindow, QApplication, QLabel,
     QPushButton, QLineEdit, QVBoxLayout, QGridLayout, QActionGroup, QAction,
-    QHBoxLayout, QFrame, QLayout, QScrollArea, QCompleter, QMessageBox,
+    QHBoxLayout, QFrame, QScrollArea, QCompleter, QMessageBox,
     QInputDialog, QShortcut)
 from PyQt5.QtCore import QStringListModel
 from geocoding import Geocoder

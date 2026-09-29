@@ -240,12 +240,14 @@
 
 ---
 
-## v1.0.3
+## v1.0.2
 
-- Fixed the uninstaller runtime error ("Cannot call 'WizardSilent'
-  function during Uninstall"): the uninstall phase must use
-  UninstallSilent(). Verified live: the interactive keep-or-delete
-  prompt now shows correctly and both answers behave.
+- Fixed a first-run crash: on a machine with no existing key, the API
+  key dialog referenced an unimported dialog class and the app closed
+  instead of asking. Found by the clean-machine release test and
+  covered by a regression test.
+- Re-published v1.0.1, which had shipped with a silent-uninstall data
+  loss risk and unreadable attribution links on the dark theme.
 
 ---
 
@@ -253,13 +255,17 @@
 
 - Fixed the uninstaller runtime error ("Cannot call 'WizardSilent'
   function during Uninstall") that appeared at the end of an
-  uninstall. The uninstall phase now uses UninstallSilent().
+  uninstall: the uninstall phase now uses UninstallSilent(). Verified
+  live, the interactive keep-or-delete prompt shows correctly and both
+  answers behave.
 - Re-published the GitHub release with corrected notes and checksums
   (an earlier scripted publish had silently failed).
 
 ---
 
-## Upcoming
+## v1.0.4
+
+Full findings and next steps in docs/code-review-2026-09.md.
 
 - Added CONTRIBUTING.md: contributor setup, ground rules, test and PR
   expectations. It is the public counterpart of the local agent.md.
@@ -346,3 +352,4 @@
 - Fixed test_get_forecast_picks_the_entry_closest_to_midday, which built
   its timestamps in machine-local time while declaring a city an hour
   ahead, so it passed by agreeing with the timezone bug above.
+- Version 1.0.4.
