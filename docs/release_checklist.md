@@ -91,10 +91,14 @@ mistaken for coverage.
 ## Documentation
 
 - [ ] README install section current (installer, portable, source)
-- [ ] Public screenshots under docs/screenshots/ refreshed
+- [ ] Public screenshots under docs/screenshots/ refreshed (the shipped
+      shot is real API data from the v1.0.1 era; refreshing it needs the
+      owner's own key, since the offline capture harness can only
+      produce sample data and would read as less credible)
 - [x] agent.md architecture tree matches disk
-- [ ] GitHub release tagged with installer, zip, and checksums (not
-      published yet; the artifacts and notes are prepared)
+- [x] GitHub release tagged with installer, zip, and checksums
+      (published as v1.0.4; GitHub's own asset digests match the
+      SHA-256 values in the release notes)
 
 ## Known gaps
 

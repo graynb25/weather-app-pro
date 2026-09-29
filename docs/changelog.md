@@ -353,3 +353,6 @@ Full findings and next steps in docs/code-review-2026-09.md.
   its timestamps in machine-local time while declaring a city an hour
   ahead, so it passed by agreeing with the timezone bug above.
 - Version 1.0.4.
+- Published v1.0.4: the installer and the portable zip, tagged on main
+  with the SHA-256 values in the release notes, which match the digests
+  GitHub computed for the uploaded assets.
